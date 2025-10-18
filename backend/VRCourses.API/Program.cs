@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Добавляем сервисы
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
 
 // Настройка JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
