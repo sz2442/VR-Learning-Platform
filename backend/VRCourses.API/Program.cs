@@ -8,6 +8,8 @@ using VRCourses.API.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddScoped<IQuizService, QuizService>();
+
 // Добавляем DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -61,9 +63,40 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await SeedData.SeedQuestionsAsync(context);
+}
+
 app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        
+        // 1️⃣ Сначала применить миграции
+        Console.WriteLine("🔄 Applying database migrations...");
+        await context.Database.MigrateAsync();
+        Console.WriteLine("✅ Migrations applied successfully");
+        
+        // 2️⃣ Потом seed данные
+        Console.WriteLine("🌱 Seeding database...");
+        await SeedData.SeedQuestionsAsync(context);
+        Console.WriteLine("✅ Database seeded successfully");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "❌ An error occurred during database initialization");
+        throw; // Останавливаем приложение при ошибке
+    }
+}
 
 app.Run();
