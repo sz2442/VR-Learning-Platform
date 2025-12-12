@@ -1,171 +1,111 @@
-# Frontend (React)
+# VR Meta University - Frontend
 
-## Установка зависимостей
+React frontend for the VR Meta University adaptive learning platform.
+
+## 🚀 Tech Stack
+
+- **React 18** + TypeScript
+- **Vite** - Fast build tool
+- **Tailwind CSS** - Utility-first styling
+- **TanStack Query** - Server state management
+- **Zustand** - Client state management
+- **React Router v6** - Routing
+- **Framer Motion** - Animations
+- **Axios** - HTTP client
+- **Lucide React** - Icons
+
+## 📁 Project Structure
+
+```
+src/
+├── api/           # API client and endpoint functions
+├── components/
+│   ├── auth/      # Login, Register forms
+│   ├── courses/   # Course cards, grid
+│   ├── layout/    # Header, Footer, Layout
+│   ├── quiz/      # Quiz UI components
+│   └── ui/        # Reusable UI components
+├── hooks/         # Custom React Query hooks
+├── lib/           # Utilities
+├── pages/         # Page components
+├── stores/        # Zustand stores
+└── types/         # TypeScript types
+```
+
+## 🛠️ Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your backend URL
+   ```
+
+3. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Build for production:**
+   ```bash
+   npm run build
+   ```
+
+## 🔗 API Integration
+
+The frontend expects the backend API at `VITE_API_URL` (default: `http://localhost:5000/api`).
+
+### Required Endpoints:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/login` | User login |
+| POST | `/auth/register` | User registration |
+| GET | `/courses` | List all courses |
+| GET | `/courses/{id}` | Get course details |
+| POST | `/quiz/start/{courseId}` | Start quiz session |
+| GET | `/quiz/{sessionId}/next` | Get next question |
+| POST | `/quiz/{sessionId}/answer` | Submit answer |
+| GET | `/quiz/{sessionId}/stats` | Get session stats |
+
+## 🎨 Features
+
+- **Adaptive Quiz System** - Difficulty adjusts based on performance
+- **Real-time Progress** - Track accuracy and difficulty level
+- **Dark/Light Mode** - System preference + manual toggle
+- **Responsive Design** - Mobile-first approach
+- **Smooth Animations** - Framer Motion transitions
+- **Toast Notifications** - Feedback for user actions
+
+## 📝 Scripts
+
 ```bash
-npm install
+npm run dev      # Start dev server
+npm run build    # Build for production
+npm run preview  # Preview production build
+npm run lint     # Run ESLint
 ```
 
-## Запуск dev сервера
-```bash
-npm run dev
-```
+## 🔐 Authentication
 
-Приложение откроется на `http://localhost:5173` (Vite) или `http://localhost:3000` (Create React App)
+JWT-based authentication with:
+- Token stored in localStorage (via Zustand persist)
+- Automatic token refresh check
+- Protected routes redirect to login
+- 401 responses trigger logout
 
-## Backend API
+## 📊 State Management
 
-**Base URL:** `http://localhost:5000`
+| Store | Purpose |
+|-------|---------|
+| `authStore` | User authentication state |
+| `quizStore` | Active quiz session state |
+| `uiStore` | Theme, sidebar preferences |
 
-**Swagger документация:** `http://localhost:5000/swagger`
+---
 
-## Доступные Endpoints
-
-### Аутентификация
-
-#### Регистрация
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "password123",
-  "firstName": "Иван",
-  "lastName": "Петров"
-}
-```
-
-**Успешный ответ (200):**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Ошибка (400):**
-```json
-{
-  "message": "Email already exists"
-}
-```
-
-#### Логин
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
-
-**Успешный ответ (200):**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Ошибка (401):**
-```json
-{
-  "message": "Invalid email or password"
-}
-```
-
-## Работа с токеном
-
-После получения токена при регистрации/логине:
-
-1. **Сохраните токен** (в localStorage или state management)
-```javascript
-localStorage.setItem('token', response.data.token);
-```
-
-2. **Отправляйте токен в заголовках** при запросах к защищённым endpoints:
-```javascript
-headers: {
-  'Authorization': `Bearer ${token}`,
-  'Content-Type': 'application/json'
-}
-```
-
-## Пример использования с Axios
-```javascript
-import axios from 'axios';
-
-const API_URL = 'http://localhost:5000/api';
-
-// Регистрация
-const register = async (userData) => {
-  const response = await axios.post(`${API_URL}/auth/register`, userData);
-  if (response.data.token) {
-    localStorage.setItem('token', response.data.token);
-  }
-  return response.data;
-};
-
-// Логин
-const login = async (credentials) => {
-  const response = await axios.post(`${API_URL}/auth/login`, credentials);
-  if (response.data.token) {
-    localStorage.setItem('token', response.data.token);
-  }
-  return response.data;
-};
-
-// Запрос с авторизацией (для будущих endpoints)
-const getProtectedData = async () => {
-  const token = localStorage.getItem('token');
-  const response = await axios.get(`${API_URL}/protected-route`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-  return response.data;
-};
-```
-
-## Tech Stack (рекомендуемый)
-
-- **React** - UI библиотека
-- **React Router** - маршрутизация
-- **Axios** - HTTP клиент для API запросов
-- **Tailwind CSS** - стилизация (опционально)
-
-## Структура проекта (рекомендуемая)
-```
-frontend/
-├── src/
-│   ├── components/       # Компоненты
-│   ├── pages/           # Страницы
-│   │   ├── Landing.jsx
-│   │   ├── Login.jsx
-│   │   └── Register.jsx
-│   ├── services/        # API сервисы
-│   │   └── authService.js
-│   ├── context/         # Context API для состояния
-│   └── App.jsx
-└── package.json
-```
-
-## CORS
-
-CORS уже настроен на backend для:
-- `http://localhost:3000` (Create React App)
-- `http://localhost:5173` (Vite)
-
-Если используете другой порт - сообщите backend разработчику.
-
-## Статусы ответов
-
-- **200** - Успех
-- **400** - Неверные данные (валидация)
-- **401** - Неавторизован (неверный токен или credentials)
-- **404** - Не найдено
-- **500** - Ошибка сервера
-
-## Контакты
-
-По вопросам к API обращайтесь к backend разработчику.
+**VR Meta University** - Diploma Project by IT2-2217

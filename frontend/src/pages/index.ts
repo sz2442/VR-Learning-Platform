@@ -1,0 +1,7 @@
+export { HomePage } from './HomePage';
+export { LoginPage } from './LoginPage';
+export { RegisterPage } from './RegisterPage';
+export { CourseDetailPage } from './CourseDetailPage';
+export { QuizPage } from './QuizPage';
+export { MyLearningPage } from './MyLearningPage';
+export { NotFoundPage } from './NotFoundPage';
