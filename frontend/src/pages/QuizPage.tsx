@@ -4,110 +4,151 @@ import { QuizHeader, QuizQuestion, QuizResults } from '@/components/quiz';
 import { PageLoader } from '@/components/ui';
 import { useNextQuestion, useSubmitAnswer, useQuizStats, useStartQuiz } from '@/hooks';
 import { useQuizStore } from '@/stores/quizStore';
+import toast from "react-hot-toast";
 
 const MAX_QUESTIONS = 10;
 
 export function QuizPage() {
-  const { sessionId: sessionIdParam } = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
-  const sessionId = Number(sessionIdParam);
+    const { sessionId: sessionIdParam } = useParams<{ sessionId: string }>();
+    const navigate = useNavigate();
 
-  const { answeredCount, courseId, resetSession, getTimeSpent } = useQuizStore();
-  const [showResults, setShowResults] = useState(false);
-  const [lastResult, setLastResult] = useState<{ isCorrect: boolean; selectedId: number } | null>(null);
+    const sessionId = sessionIdParam ? Number(sessionIdParam) : null;
+    const isValidSession = sessionId !== null && !isNaN(sessionId);
 
-  const { data: question, isLoading: isLoadingQuestion, refetch } = useNextQuestion(
-    showResults ? null : sessionId
-  );
-  const { data: stats, refetch: refetchStats } = useQuizStats(showResults ? sessionId : null);
-  const { mutate: submitAnswer, isPending: isSubmitting } = useSubmitAnswer();
-  const { mutate: startQuiz} = useStartQuiz();
+    const { answeredCount, courseId, resetSession, getTimeSpent, syncProgress } = useQuizStore();
+    const [showResults, setShowResults] = useState(false);
+    const [lastResult, setLastResult] = useState<{ isCorrect: boolean; selectedId: number } | null>(null);
 
-  // Check if quiz is complete
-  useEffect(() => {
-    if (answeredCount >= MAX_QUESTIONS || question === null) {
-      setShowResults(true);
-      refetchStats();
-    }
-  }, [answeredCount, question, refetchStats]);
+    // Валидация сессии
+    useEffect(() => {
+        if (!isValidSession) {
+            toast.error('Invalid quiz session');
+            navigate('/');
+        }
+    }, [isValidSession, navigate]);
 
-  const handleSubmit = (answerId: number) => {
-    const timeSpent = getTimeSpent();
-    
-    submitAnswer(
-      {
-        sessionId,
-        questionId: question!.questionId,
-          selectedAnswerId: answerId,
-        timeSpentSeconds: timeSpent,
-      },
-      {
-        onSuccess: (result) => {
-          setLastResult({ isCorrect: result.isCorrect, selectedId: answerId });
-          
-          // Show result briefly, then load next question
-          setTimeout(() => {
-            setLastResult(null);
-            if (answeredCount + 1 >= MAX_QUESTIONS) {
-              setShowResults(true);
-              refetchStats();
-            } else {
-              refetch();
+    // 1. Загрузка статистики
+    const { data: stats, refetch: refetchStats, isLoading: isLoadingStats } = useQuizStats(
+        isValidSession ? sessionId : null
+    );
+
+    // 🔥 ФИКС: Синхронизация и принудительное завершение
+    useEffect(() => {
+        if (stats) {
+            // Синхронизируем стор (с защитой от отката)
+            syncProgress(stats.totalQuestions, stats.finalDifficulty);
+
+            // Если по статистике мы уже ответили на 10 вопросов - ПОКАЗАТЬ РЕЗУЛЬТАТ
+            // Это решит проблему со скриншота, где totalQuestions: 10, но висит вопрос
+            if (stats.totalQuestions >= MAX_QUESTIONS) {
+                setShowResults(true);
             }
-          }, 1500);
-        },
-      }
+        }
+    }, [stats, syncProgress]);
+
+    // Не грузим вопрос, если уже показываем результаты или достигли лимита
+    const shouldFetchQuestion = !showResults && isValidSession && answeredCount < MAX_QUESTIONS;
+
+    const { data: question, isLoading: isLoadingQuestion, refetch } = useNextQuestion(
+        shouldFetchQuestion ? sessionId : null
     );
-  };
 
-  const handleExit = () => {
-    if (confirm('Are you sure you want to exit? Your progress will be saved.')) {
-      resetSession();
-      navigate('/');
+    const { mutate: submitAnswer, isPending: isSubmitting } = useSubmitAnswer();
+    const { mutate: startQuiz } = useStartQuiz();
+
+    // Если бэкенд вернул null (вопросы кончились), а статистика показывает, что мы начали квиз
+    useEffect(() => {
+        if (shouldFetchQuestion && !isLoadingQuestion && !question && stats && stats.totalQuestions > 0) {
+            console.log('🏁 No more questions available -> Finishing');
+            setShowResults(true);
+            refetchStats();
+        }
+    }, [question, isLoadingQuestion, shouldFetchQuestion, stats, refetchStats]);
+
+    // Мониторинг локального счетчика
+    useEffect(() => {
+        if (answeredCount >= MAX_QUESTIONS) {
+            setShowResults(true);
+            refetchStats();
+        }
+    }, [answeredCount, refetchStats]);
+
+    const handleSubmit = (answerId: number) => {
+        if (!isValidSession || sessionId === null) return;
+
+        const timeSpent = getTimeSpent();
+
+        submitAnswer({
+            sessionId,
+            questionId: question!.questionId,
+            selectedAnswerId: answerId,
+            timeSpentSeconds: timeSpent,
+        }, {
+            onSuccess: (result) => {
+                setLastResult({ isCorrect: result.isCorrect, selectedId: answerId });
+
+                setTimeout(() => {
+                    setLastResult(null);
+
+                    // Проверяем состояние СРАЗУ после ответа
+                    const currentCount = useQuizStore.getState().answeredCount;
+
+                    if (currentCount >= MAX_QUESTIONS) {
+                        setShowResults(true);
+                        refetchStats();
+                    } else {
+                        refetch(); // Грузим следующий
+                    }
+                }, 1000);
+            },
+        });
+    };
+
+    const handleExit = () => {
+        if (confirm('Are you sure you want to exit?')) {
+            resetSession();
+            navigate('/');
+        }
+    };
+
+    const handleRetry = () => {
+        if (courseId) {
+            resetSession();
+            startQuiz(courseId);
+        }
+    };
+
+    if (showResults) {
+        if (isLoadingStats || !stats) {
+            return (
+                <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
+                    <PageLoader />
+                </div>
+            );
+        }
+        return (
+            <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
+                <QuizResults stats={stats} onRetry={handleRetry} />
+            </div>
+        );
     }
-  };
 
-  const handleRetry = () => {
-    if (courseId) {
-      resetSession();
-      startQuiz(courseId);
-    }
-  };
-
-  // Show results
-  if (showResults && stats) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
-        <QuizResults stats={stats} onRetry={handleRetry} />
-      </div>
-    );
-  }
-
-  // Loading states
-  if (isLoadingQuestion && !question) {
-    return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
-        <QuizHeader totalQuestions={MAX_QUESTIONS} onExit={handleExit} />
-        <div className="mx-auto max-w-3xl px-4 py-12">
-          <PageLoader />
+        <div className="min-h-screen bg-surface-50 dark:bg-surface-950 flex flex-col">
+            <QuizHeader totalQuestions={MAX_QUESTIONS} onExit={handleExit} />
+            <div className="mx-auto w-full max-w-3xl px-4 py-12 flex-1">
+                {isLoadingQuestion && !question ? (
+                    <PageLoader />
+                ) : (
+                    <QuizQuestion
+                        question={question}
+                        isLoading={isLoadingQuestion}
+                        onSubmit={handleSubmit}
+                        isSubmitting={isSubmitting}
+                        lastResult={lastResult}
+                    />
+                )}
+            </div>
         </div>
-      </div>
     );
-  }
-
-  return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
-      <QuizHeader totalQuestions={MAX_QUESTIONS} onExit={handleExit} />
-      
-      <div className="mx-auto max-w-3xl px-4 py-12">
-        <QuizQuestion
-          question={question}
-          isLoading={isLoadingQuestion}
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          lastResult={lastResult}
-        />
-      </div>
-    </div>
-  );
 }

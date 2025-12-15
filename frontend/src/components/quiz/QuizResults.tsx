@@ -11,9 +11,9 @@ interface QuizResultsProps {
 }
 
 export function QuizResults({ stats, onRetry }: QuizResultsProps) {
-  const accuracy = stats.totalAnswered > 0 
-    ? (stats.correctAnswers / stats.totalAnswered) * 100 
-    : 0;
+    const accuracy = stats.totalQuestions > 0
+        ? (stats.correctAnswers / stats.totalQuestions) * 100
+        : 0;
 
   const getGrade = (acc: number) => {
     if (acc >= 90) return { label: 'Excellent!', emoji: '🏆', color: 'text-yellow-500' };
@@ -58,18 +58,18 @@ export function QuizResults({ stats, onRetry }: QuizResultsProps) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <Target className="h-6 w-6 text-primary-500" />
-              <span className="text-sm font-medium text-surface-500">Accuracy</span>
-            </div>
-            <p className="text-4xl font-bold text-surface-900 dark:text-white">
-              {formatAccuracy(accuracy)}
-            </p>
-            <p className="text-sm text-surface-400 mt-1">
-              {stats.correctAnswers} / {stats.totalAnswered} correct
-            </p>
-          </Card>
+            <Card className="text-center">
+                <div className="flex items-center justify-center gap-3 mb-2">
+                    <Target className="h-6 w-6 text-primary-500" />
+                    <span className="text-sm font-medium text-surface-500">Accuracy</span>
+                </div>
+                <p className="text-4xl font-bold text-surface-900 dark:text-white">
+                    {formatAccuracy(accuracy)}
+                </p>
+                <p className="text-sm text-surface-400 mt-1">
+                    {stats.correctAnswers} / {stats.totalQuestions} correct {/* ✅ Исправлено */}
+                </p>
+            </Card>
         </motion.div>
 
         <motion.div
@@ -99,17 +99,17 @@ export function QuizResults({ stats, onRetry }: QuizResultsProps) {
         transition={{ delay: 0.5 }}
         className="mt-6"
       >
-        <Card>
-          <h3 className="mb-4 font-semibold">Final Difficulty Level</h3>
-          <DifficultyIndicator level={stats.finalDifficulty} />
-          <p className="mt-3 text-sm text-surface-500">
-            {stats.finalDifficulty > 7 
-              ? "You're performing at an advanced level! The system adapted to challenge you."
-              : stats.finalDifficulty > 4
-              ? "You're at an intermediate level. Keep practicing to reach higher difficulties!"
-              : "The system adjusted to help you learn the basics. Don't give up!"}
-          </p>
-        </Card>
+          <Card>
+              <h3 className="mb-4 font-semibold">Final Difficulty Level</h3>
+              <DifficultyIndicator level={stats.finalDifficulty} /> {/* ✅ Исправлено */}
+              <p className="mt-3 text-sm text-surface-500">
+                  {stats.finalDifficulty > 7
+                      ? "You're performing at an advanced level!"
+                      : stats.finalDifficulty > 4
+                          ? "You're at an intermediate level."
+                          : "Keep practicing!"}
+              </p>
+          </Card>
       </motion.div>
 
       {/* Actions */}

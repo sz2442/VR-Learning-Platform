@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { quizApi } from '@/api';
 import { useQuizStore } from '@/stores/quizStore';
 import type { SubmitAnswerDto } from '@/types';
@@ -39,7 +39,6 @@ export function useNextQuestion(sessionId: number | null) {
 }
 
 export function useSubmitAnswer() {
-  const queryClient = useQueryClient();
   const recordAnswer = useQuizStore((state) => state.recordAnswer);
 
   return useMutation({
@@ -54,9 +53,7 @@ export function useSubmitAnswer() {
         toast.error(result.feedback || 'Incorrect', { icon: '❌' });
       }
 
-      // Invalidate to get next question
-      queryClient.invalidateQueries({ queryKey: ['quiz', 'question'] });
-    },
+      },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to submit answer');
     },
@@ -64,9 +61,16 @@ export function useSubmitAnswer() {
 }
 
 export function useQuizStats(sessionId: number | null) {
-  return useQuery({
-    queryKey: ['quiz', 'stats', sessionId],
-    queryFn: () => quizApi.getStats(sessionId!),
-    enabled: !!sessionId,
-  });
+    return useQuery({
+        queryKey: ['quiz', 'stats', sessionId],
+        queryFn: async () => {
+            if (!sessionId || isNaN(sessionId)) {
+                throw new Error('Invalid session ID for stats');
+            }
+            console.log('📊 Fetching stats for session:', sessionId);
+            return quizApi.getStats(sessionId);
+        },
+        enabled: sessionId !== null && !isNaN(sessionId),
+        staleTime: 0,
+    });
 }

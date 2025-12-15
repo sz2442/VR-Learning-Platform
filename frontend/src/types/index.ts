@@ -70,7 +70,7 @@ export interface SessionStats {
   totalQuestions: number;
   correctAnswers: number;
   accuracy: number;
-  currentDifficulty: number;
+  finalDifficulty: number;
 }
 
 export interface QuizSession {
