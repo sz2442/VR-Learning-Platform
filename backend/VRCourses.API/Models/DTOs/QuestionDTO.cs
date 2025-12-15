@@ -34,5 +34,6 @@ public class SessionStatsDto
     public int TotalQuestions { get; set; }
     public int CorrectAnswers { get; set; }
     public double Accuracy { get; set; }
-    public int CurrentDifficulty { get; set; }
+    public int CurrentDifficulty { get; set; }  // ✅ Для промежуточных результатов
+    public int FinalDifficulty { get; set; }  
 }

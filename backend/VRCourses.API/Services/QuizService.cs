@@ -9,10 +9,14 @@ namespace VRCourses.API.Services;
 public class QuizService : IQuizService
 {
     private readonly AppDbContext _context;
+    private readonly IMlService _mlService;
+    private readonly ILogger<QuizService> _logger;
 
-    public QuizService(AppDbContext context)
+    public QuizService(AppDbContext context, IMlService mlService, ILogger<QuizService> logger)
     {
         _context = context;
+        _mlService = mlService;
+        _logger = logger;
     }
 
     public async Task<int> StartQuizSessionAsync(int userId, int courseId)
@@ -21,13 +25,16 @@ public class QuizService : IQuizService
         {
             UserId = userId,
             CourseId = courseId,
-            CurrentDifficulty = 5, // Start medium
+            CurrentDifficulty = 5,
             StartTime = DateTime.UtcNow,
             IsActive = true
         };
 
         _context.QuizSessions.Add(session);
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("🎮 Started quiz session {SessionId} for user {UserId}, course {CourseId}", 
+            session.Id, userId, courseId);
 
         return session.Id;
     }
@@ -40,7 +47,12 @@ public class QuizService : IQuizService
 
         if (session == null) return null;
 
-        // Получить вопросы, которые пользователь еще не видел
+        // 🔥 ФИКС: Жесткое ограничение на 10 вопросов
+        if (session.Attempts.Count >= 10)
+        {
+            return null; // Квиз завершен
+        }
+
         var attemptedQuestionIds = session.Attempts.Select(a => a.QuestionId).ToList();
 
         var question = await _context.Questions
@@ -48,12 +60,11 @@ public class QuizService : IQuizService
             .Where(q => q.CourseId == session.CourseId)
             .Where(q => q.DifficultyLevel == session.CurrentDifficulty)
             .Where(q => !attemptedQuestionIds.Contains(q.Id))
-            .OrderBy(q => Guid.NewGuid()) // Random
+            .OrderBy(q => Guid.NewGuid())
             .FirstOrDefaultAsync();
 
         if (question == null)
         {
-            // Если вопросов на этом уровне нет, ищем ближайший уровень
             question = await _context.Questions
                 .Include(q => q.Answers)
                 .Where(q => q.CourseId == session.CourseId)
@@ -82,6 +93,7 @@ public class QuizService : IQuizService
     {
         var session = await _context.QuizSessions
             .Include(s => s.Attempts)
+            .ThenInclude(a => a.Question)
             .FirstOrDefaultAsync(s => s.Id == dto.SessionId);
 
         if (session == null)
@@ -91,7 +103,12 @@ public class QuizService : IQuizService
             .FirstOrDefaultAsync(a => a.Id == dto.SelectedAnswerId);
 
         if (answer == null)
-            throw new Exception($"Answer with ID {dto.SelectedAnswerId} not found in database. QuestionId was: {dto.QuestionId}");
+            throw new Exception($"Answer with ID {dto.SelectedAnswerId} not found");
+
+        var question = await _context.Questions.FindAsync(dto.QuestionId);
+        if (question == null)
+            throw new Exception($"Question with ID {dto.QuestionId} not found");
+
         // Сохранить попытку
         var attempt = new QuizAttempt
         {
@@ -104,9 +121,19 @@ public class QuizService : IQuizService
         };
 
         _context.QuizAttempts.Add(attempt);
+        await _context.SaveChangesAsync();
 
-        // 🎯 АДАПТИВНЫЙ АЛГОРИТМ (простой)
-        var newDifficulty = AdjustDifficulty(session);
+        // Перезагрузить сессию с полными данными
+        session = await _context.QuizSessions
+            .Include(s => s.Attempts)
+            .ThenInclude(a => a.Question)
+            .FirstOrDefaultAsync(s => s.Id == dto.SessionId);
+
+        if (session == null)
+            throw new Exception("Session lost after save");
+
+        // 🎯 ML-АДАПТАЦИЯ с fallback
+        var newDifficulty = await GetAdaptiveDifficultyAsync(session, question.DifficultyLevel);
         session.CurrentDifficulty = newDifficulty;
 
         await _context.SaveChangesAsync();
@@ -119,6 +146,93 @@ public class QuizService : IQuizService
         };
     }
 
+    private async Task<int> GetAdaptiveDifficultyAsync(QuizSession session, int lastQuestionDifficulty)
+    {
+        var recentAttempts = session.Attempts
+            .OrderByDescending(a => a.Timestamp)
+            .Take(10)
+            .Select(a => new AttemptInfo(
+                a.QuestionId,
+                a.Question?.DifficultyLevel ?? lastQuestionDifficulty,
+                a.IsCorrect,
+                a.TimeSpentSeconds
+            ))
+            .ToList();
+
+        // ⚠️ Первые 3 вопроса - не меняем сложность резко (warm-up)
+        if (session.Attempts.Count <= 3)
+        {
+            _logger.LogInformation("🔥 Warm-up period, keeping difficulty stable");
+            return session.CurrentDifficulty;
+        }
+
+        // Недостаточно данных - используем rule-based
+        if (recentAttempts.Count < 3)
+        {
+            _logger.LogInformation("📊 Not enough data, using rule-based");
+            return AdjustDifficulty(session);
+        }
+
+        try
+        {
+            var mlPrediction = await _mlService.PredictDifficultyAsync(
+                session.Id,
+                session.CurrentDifficulty,
+                recentAttempts,
+                "Intermediate"
+            );
+
+            if (mlPrediction.HasValue)
+            {
+                // ✅ ВАЛИДАЦИЯ
+                var validated = ValidateDifficulty(mlPrediction.Value, session.CurrentDifficulty);
+                _logger.LogInformation("🤖 ML: {Raw} → Validated: {Final}", mlPrediction.Value, validated);
+                return validated;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "⚠️ ML service error");
+        }
+
+        // Fallback
+        _logger.LogInformation("📊 Using rule-based adaptation");
+        return AdjustDifficulty(session);
+    }
+
+    private int ValidateDifficulty(int mlPrediction, int currentDifficulty)
+    {
+        _logger.LogInformation("🔍 ML raw prediction: {ML}, current: {Current}", mlPrediction, currentDifficulty);
+        
+        // 1. Не падаем ниже 3 (слишком легко)
+        if (mlPrediction < 3) 
+        {
+            _logger.LogWarning("⚠️ ML predicted {ML} < 3, clamping to 3", mlPrediction);
+            mlPrediction = 3;
+        }
+        
+        // 2. Не прыгаем больше чем на ±2 за раз
+        var maxChange = 2;
+        if (mlPrediction > currentDifficulty + maxChange)
+        {
+            _logger.LogWarning("⚠️ ML jump too high: {ML} → {Clamped}", 
+                mlPrediction, currentDifficulty + maxChange);
+            mlPrediction = currentDifficulty + maxChange;
+        }
+        if (mlPrediction < currentDifficulty - maxChange)
+        {
+            _logger.LogWarning("⚠️ ML drop too low: {ML} → {Clamped}", 
+                mlPrediction, currentDifficulty - maxChange);
+            mlPrediction = currentDifficulty - maxChange;
+        }
+        
+        // 3. Держим в диапазоне 1-10
+        mlPrediction = Math.Clamp(mlPrediction, 1, 10);
+        
+        _logger.LogInformation("✅ Validated difficulty: {Result}", mlPrediction);
+        return mlPrediction;
+    }
+
     private int AdjustDifficulty(QuizSession session)
     {
         var recentAttempts = session.Attempts
@@ -127,24 +241,39 @@ public class QuizService : IQuizService
             .ToList();
 
         if (recentAttempts.Count < 3)
-            return session.CurrentDifficulty; // Недостаточно данных
+            return session.CurrentDifficulty;
 
         double accuracy = recentAttempts.Count(a => a.IsCorrect) / (double)recentAttempts.Count;
         double avgTime = recentAttempts.Average(a => a.TimeSpentSeconds);
 
-        // 📊 Правила адаптации
+        var newDifficulty = session.CurrentDifficulty;
+
+        // ✅ Более плавная логика
         if (accuracy >= 0.8 && avgTime < 30)
         {
-            // Слишком легко -> увеличить сложность
-            return Math.Min(session.CurrentDifficulty + 1, 10);
+            newDifficulty = Math.Min(session.CurrentDifficulty + 1, 10);
         }
-        else if (accuracy < 0.4)
+        else if (accuracy >= 0.6 && accuracy < 0.8)
         {
-            // Слишком сложно -> уменьшить сложность
-            return Math.Max(session.CurrentDifficulty - 1, 1);
+            if (avgTime < 20)
+                newDifficulty = Math.Min(session.CurrentDifficulty + 1, 10);
+            else
+                newDifficulty = session.CurrentDifficulty;
+        }
+        else if (accuracy >= 0.4 && accuracy < 0.6)
+        {
+            newDifficulty = session.CurrentDifficulty;
+        }
+        else // accuracy < 0.4
+        {
+            // ✅ Не ниже 3!
+            newDifficulty = Math.Max(session.CurrentDifficulty - 1, 3);
         }
 
-        return session.CurrentDifficulty; // Оставить как есть
+        _logger.LogInformation("📊 Rule-based: acc={Accuracy:P0}, time={Time:F1}s → {Current} → {New}", 
+            accuracy, avgTime, session.CurrentDifficulty, newDifficulty);
+        
+        return newDifficulty;
     }
 
     public async Task<SessionStatsDto> GetSessionStatsAsync(int sessionId)
@@ -164,7 +293,8 @@ public class QuizService : IQuizService
             TotalQuestions = total,
             CorrectAnswers = correct,
             Accuracy = total > 0 ? (double)correct / total * 100 : 0,
-            CurrentDifficulty = session.CurrentDifficulty
+            CurrentDifficulty = session.CurrentDifficulty,
+            FinalDifficulty = session.CurrentDifficulty
         };
     }
 }

@@ -10,13 +10,27 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IQuizService, QuizService>();
 
-// Добавляем DbContext
+// ✅ DbContext с детальным логированием
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging();
+        options.EnableDetailedErrors();
+    }
+});
 
 // Добавляем сервисы
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
+
+builder.Services.AddHttpClient<IMlService, MlService>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["MlService:BaseUrl"] ?? "http://localhost:8000");
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 
 // Настройка JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -44,7 +58,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // Vite или CRA
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -63,17 +77,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await SeedData.SeedQuestionsAsync(context);
-}
-
-app.UseCors("AllowReactApp");
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-
+// ✅ СНАЧАЛА миграции и seed (ДО app.Run())
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -81,12 +85,10 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
         
-        // 1️⃣ Сначала применить миграции
         Console.WriteLine("🔄 Applying database migrations...");
         await context.Database.MigrateAsync();
         Console.WriteLine("✅ Migrations applied successfully");
         
-        // 2️⃣ Потом seed данные
         Console.WriteLine("🌱 Seeding database...");
         await SeedData.SeedQuestionsAsync(context);
         Console.WriteLine("✅ Database seeded successfully");
@@ -95,8 +97,14 @@ using (var scope = app.Services.CreateScope())
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "❌ An error occurred during database initialization");
-        throw; // Останавливаем приложение при ошибке
+        throw;
     }
 }
 
+app.UseCors("AllowReactApp");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+// ✅ app.Run() в самом конце
 app.Run();
