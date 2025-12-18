@@ -1,36 +1,32 @@
-# Backend (.NET)
-backend/**/bin/
-backend/**/obj/
-backend/**/*.user
-backend/**/*.suo
-backend/.vs/
-backend/.idea/
-backend/.vscode/
-backend/**/.DS_Store
+# Environment variables - NEVER COMMIT
+.env
+.env.local
+.env.*.local
 
-# Frontend (React/Node)
-frontend/node_modules/
-frontend/build/
-frontend/dist/
-frontend/.env
-frontend/.env.local
-frontend/**/.DS_Store
+# Docker
+docker-compose.override.yml
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+# Database backups
+*.sql
+backup.sql
 
 # OS
 .DS_Store
 Thumbs.db
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Database
-*.db
-*.sqlite
-
+# Dependencies will be installed in containers
+node_modules/
+.venv/
+venv/
