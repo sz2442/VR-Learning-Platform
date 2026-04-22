@@ -30,3 +30,12 @@ yarn-error.log*
 node_modules/
 .venv/
 venv/
+
+# .NET / C#
+[Bb]in/
+[Ob]j/
+*.user
+*.suo
+.vs/
+.idea/
+*.sln.docuser
