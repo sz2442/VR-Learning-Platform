@@ -12,6 +12,7 @@ import {
   QuizPage,
   MyLearningPage,
   NotFoundPage,
+  VRTestPage,
 } from '@/pages';
 
 const queryClient = new QueryClient({
@@ -38,6 +39,9 @@ export default function App() {
           {/* Auth routes (no layout) */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+
+          {/* VR test — public, no layout */}
+          <Route path="/vr-test" element={<VRTestPage />} />
 
           {/* Protected routes with main layout */}
           <Route element={<ProtectedRoute />}>
