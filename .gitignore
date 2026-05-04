@@ -29,6 +29,8 @@ yarn-error.log*
 # 3D models
 public/models/
 
+.claude
+
 # Dependencies will be installed in containers
 node_modules/
 .venv/

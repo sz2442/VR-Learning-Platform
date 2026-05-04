@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, PointerLockControls, useGLTF, Text } from '@react-three/drei';
 import { XR, Controllers, Hands, VRButton, Interactive, useController, useXR } from '@react-three/xr';
@@ -183,6 +183,23 @@ function KeyboardLocomotion() {
   return null;
 }
 
+function XRSpawnPoint({ position }: { position: [number, number, number] }) {
+  const { player, isPresenting } = useXR((s) => ({ player: s.player, isPresenting: s.isPresenting }));
+  const applied = useRef(false);
+
+  useEffect(() => {
+    if (isPresenting && !applied.current) {
+      player.position.set(position[0], position[1], position[2]);
+      applied.current = true;
+    }
+    if (!isPresenting) {
+      applied.current = false;
+    }
+  }, [isPresenting, player, position]);
+
+  return null;
+}
+
 function XRLocomotion() {
   const { player, isPresenting } = useXR((s) => ({ player: s.player, isPresenting: s.isPresenting }));
   const leftController = useController('left');
@@ -261,41 +278,51 @@ function PanelBg({ width, height }: { width: number; height: number }) {
 
 // ─── Shape3D ──────────────────────────────────────────────────────────────────
 
-function Shape3D({ item, position, onSelect, isGrabbed, isPlaced }: {
+function Shape3D({
+  item, position, onGrab, onSelectClick, isGrabbed, isPlaced, grabberPosRef,
+}: {
   item: ShapeItem;
   position: [number, number, number];
-  onSelect: (id: string) => void;
+  onGrab: (id: string) => void;
+  onSelectClick: (id: string) => void;
   isGrabbed: boolean;
   isPlaced: boolean;
+  grabberPosRef: React.MutableRefObject<THREE.Vector3>;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null!);
+  const groupRef = useRef<THREE.Group>(null!);
+  const [hovered, setHovered] = useState(false);
 
-  useFrame((_, delta) => {
-    if (meshRef.current && isGrabbed) {
-      meshRef.current.rotation.y += delta * 3;
+  useFrame(() => {
+    if (isGrabbed && groupRef.current) {
+      groupRef.current.position.copy(grabberPosRef.current);
     }
   });
 
   if (isPlaced) return null;
 
   return (
-    <group position={position}>
-      <Interactive onSelect={() => onSelect(item.id)}>
-        <mesh ref={meshRef} scale={isGrabbed ? 1.25 : 1}>
+    <group ref={groupRef} position={isGrabbed ? undefined : position}>
+      <Interactive
+        onSelectStart={() => onGrab(item.id)}
+        onSelect={() => onSelectClick(item.id)}
+        onHover={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
+      >
+        <mesh scale={isGrabbed ? 1.25 : 1}>
           {item.shape === 'triangle' && <coneGeometry args={[0.12, 0.2, 3]} />}
           {item.shape === 'square'   && <boxGeometry args={[0.18, 0.18, 0.04]} />}
           {item.shape === 'circle'   && <sphereGeometry args={[0.11, 16, 16]} />}
           <meshStandardMaterial
-            color={item.color}
-            emissive={isGrabbed ? item.color : '#000000'}
-            emissiveIntensity={isGrabbed ? 0.5 : 0}
+            color={hovered ? '#ffffff' : item.color}
+            emissive={isGrabbed ? item.color : hovered ? item.color : '#000000'}
+            emissiveIntensity={isGrabbed ? 0.5 : hovered ? 0.3 : 0}
           />
         </mesh>
       </Interactive>
       {isGrabbed && (
         <mesh position={[0, -0.16, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.09, 0.13, 24]} />
-          <meshStandardMaterial color="#00e5c8" transparent opacity={0.7} />
+          <meshStandardMaterial color="#ffff00" transparent opacity={0.7} />
         </mesh>
       )}
     </group>
@@ -310,19 +337,26 @@ function DropZone3D({ zone, placedShapes, isActive, onSelect }: {
   isActive: boolean;
   onSelect: (zoneId: string) => void;
 }) {
+  const pos: [number, number, number] = [zone.position.x, zone.position.y, zone.position.z];
   return (
-    <group position={[zone.position.x, zone.position.y, zone.position.z]}>
+    <group position={pos}>
       {/* platform */}
       <Interactive onSelect={() => onSelect(zone.id)}>
-        <mesh>
-          <boxGeometry args={[0.4, 0.02, 0.4]} />
-          <meshStandardMaterial color={isActive ? '#00e5c8' : '#1e293b'} transparent opacity={isActive ? 0.9 : 0.7} />
+        <mesh position={[0, -0.05, 0]}>
+          <boxGeometry args={[0.38, 0.02, 0.38]} />
+          <meshStandardMaterial
+            color={isActive ? '#00e5c8' : '#1e293b'}
+            transparent
+            opacity={0.8}
+            emissive={isActive ? '#00e5c8' : '#000000'}
+            emissiveIntensity={isActive ? 0.2 : 0}
+          />
         </mesh>
       </Interactive>
-      {/* border glow */}
-      <mesh position={[0, -0.002, 0]}>
-        <boxGeometry args={[0.42, 0.018, 0.42]} />
-        <meshStandardMaterial color="#00e5c8" transparent opacity={isActive ? 0.5 : 0.12} />
+      {/* wireframe border — glows when a grab is active */}
+      <mesh position={[0, -0.04, 0]}>
+        <boxGeometry args={[0.40, 0.015, 0.40]} />
+        <meshStandardMaterial color="#00e5c8" transparent opacity={isActive ? 0.5 : 0.12} wireframe />
       </mesh>
       <Text position={[0, 0.08, 0]} fontSize={0.045} color={isActive ? '#00e5c8' : '#94a3b8'} anchorX="center">
         {zone.label}
@@ -353,32 +387,109 @@ function DragDropScene({ task, onComplete }: {
   onComplete: (result: { correct: number; total: number; percentage: number }) => void;
 }) {
   const [placements, setPlacements] = useState<Map<string, string>>(new Map());
-  const [grabbedShape, setGrabbedShape] = useState<string | null>(null);
+  const [grabbedShapeId, setGrabbedShapeId] = useState<string | null>(null);
 
-  // reset when task changes
+  // Refs avoid stale closures in useFrame and keep position updates off the render path
+  const grabbedShapeIdRef   = useRef<string | null>(null);
+  const grabberPosRef        = useRef(new THREE.Vector3());
+  const prevSelectPressed    = useRef(false);
+  const isPresentingRef      = useRef(false);
+  const placementsRef        = useRef(placements);
+  const taskRef              = useRef(task);
+  placementsRef.current = placements;
+  taskRef.current       = task;
+
+  const rightController = useController('right');
+  const leftController  = useController('left');
+  const { isPresenting } = useXR((s) => ({ isPresenting: s.isPresenting }));
+  isPresentingRef.current = isPresenting;
+
+  // Reset on new task
   useEffect(() => {
     setPlacements(new Map());
-    setGrabbedShape(null);
+    setGrabbedShapeId(null);
+    grabbedShapeIdRef.current = null;
+    prevSelectPressed.current = false;
   }, [task.taskId]);
 
-  const handleShapeSelect = (shapeId: string) => {
-    if (placements.has(shapeId)) return;
-    setGrabbedShape((prev) => (prev === shapeId ? null : shapeId));
-  };
+  useFrame(() => {
+    const shapeId = grabbedShapeIdRef.current;
 
-  const handleZoneSelect = (zoneId: string) => {
-    if (!grabbedShape) return;
-    setPlacements((prev) => new Map(prev).set(grabbedShape, zoneId));
-    setGrabbedShape(null);
-  };
+    // Track active controller grip position every frame while grabbed in XR
+    if (shapeId && isPresenting) {
+      const ctrl = rightController ?? leftController;
+      if (ctrl?.grip) {
+        ctrl.grip.getWorldPosition(grabberPosRef.current);
+      }
+    }
 
-  const handleSubmit = () => {
-    onComplete(validateDragDrop(task, placements));
-  };
+    // Detect XR trigger release → snap-to-nearest-zone
+    if (isPresenting) {
+      const ctrl = rightController ?? leftController;
+      const isPressed = ctrl?.inputSource?.gamepad?.buttons?.[0]?.pressed ?? false;
+
+      if (prevSelectPressed.current && !isPressed && shapeId) {
+        let nearestZone: DropZone | null = null;
+        let nearestDist = 0.35; // snap radius in metres
+        for (const zone of taskRef.current.zones) {
+          const zp = new THREE.Vector3(zone.position.x, zone.position.y, zone.position.z);
+          const d  = grabberPosRef.current.distanceTo(zp);
+          if (d < nearestDist) { nearestDist = d; nearestZone = zone; }
+        }
+        if (nearestZone) {
+          const nz = nearestZone;
+          setPlacements((prev) => new Map(prev).set(shapeId, nz.id));
+        }
+        grabbedShapeIdRef.current = null;
+        setGrabbedShapeId(null);
+      }
+      prevSelectPressed.current = isPressed;
+    }
+  });
+
+  // XR: trigger pressed while pointing at shape
+  const handleGrab = useCallback((shapeId: string) => {
+    if (!isPresentingRef.current) return;
+    setPlacements((prev) => {
+      const next = new Map(prev);
+      next.delete(shapeId); // unplace if was placed
+      return next;
+    });
+    grabbedShapeIdRef.current = shapeId;
+    setGrabbedShapeId(shapeId);
+    prevSelectPressed.current = true; // trigger is currently held
+  }, []);
+
+  // Browser fallback: click shape to select / deselect
+  const handleShapeClick = useCallback((shapeId: string) => {
+    if (isPresentingRef.current) return; // XR uses handleGrab instead
+    if (placementsRef.current.has(shapeId)) return;
+    if (grabbedShapeIdRef.current === shapeId) {
+      grabbedShapeIdRef.current = null;
+      setGrabbedShapeId(null);
+    } else {
+      if (grabbedShapeIdRef.current !== null) return; // already holding one
+      grabbedShapeIdRef.current = shapeId;
+      setGrabbedShapeId(shapeId);
+    }
+  }, []);
+
+  // Browser fallback: click zone to place grabbed shape
+  const handleZoneSelect = useCallback((zoneId: string) => {
+    const shapeId = grabbedShapeIdRef.current;
+    if (!shapeId) return;
+    setPlacements((prev) => new Map(prev).set(shapeId, zoneId));
+    grabbedShapeIdRef.current = null;
+    setGrabbedShapeId(null);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    onComplete(validateDragDrop(taskRef.current, placementsRef.current));
+  }, [onComplete]);
 
   const remaining = task.shapes.length - placements.size;
-  const allPlaced = remaining === 0;
-  const count = task.shapes.length;
+  const allPlaced  = remaining === 0;
+  const count      = task.shapes.length;
 
   return (
     <group>
@@ -396,7 +507,7 @@ function DragDropScene({ task, onComplete }: {
           key={zone.id}
           zone={zone}
           placedShapes={task.shapes.filter((s) => placements.get(s.id) === zone.id)}
-          isActive={grabbedShape !== null}
+          isActive={grabbedShapeId !== null}
           onSelect={handleZoneSelect}
         />
       ))}
@@ -409,9 +520,11 @@ function DragDropScene({ task, onComplete }: {
             key={shape.id}
             item={shape}
             position={[x, 1.1, -1.8]}
-            onSelect={handleShapeSelect}
-            isGrabbed={grabbedShape === shape.id}
+            onGrab={handleGrab}
+            onSelectClick={handleShapeClick}
+            isGrabbed={grabbedShapeId === shape.id}
             isPlaced={placements.has(shape.id)}
+            grabberPosRef={grabberPosRef}
           />
         );
       })}
@@ -434,10 +547,10 @@ function DragDropScene({ task, onComplete }: {
       </group>
 
       {/* grabbed hint */}
-      {grabbedShape && (
+      {grabbedShapeId && (
         <group position={[0, 0.72, -2.0]}>
           <Text fontSize={0.034} color="#a78bfa" anchorX="center">
-            Now select a zone to drop it
+            {isPresenting ? 'Release trigger near a zone to place' : 'Now click a zone to drop it'}
           </Text>
         </group>
       )}
@@ -883,7 +996,7 @@ export function VRTestPage() {
 
       {/* 3D canvas */}
       <Canvas
-        camera={{ position: [0, 1.6, 0], fov: 75 }}
+        camera={{ position: [0, 1.6, 3], fov: 75 }}
         style={{ width: '100%', height: '100%' }}
         gl={{ antialias: true }}
       >
@@ -896,6 +1009,7 @@ export function VRTestPage() {
           <Hands />
           <KeyboardLocomotion />
           <XRLocomotion />
+          <XRSpawnPoint position={[0, 0, 3]} />
           <Scene onLock={() => setIsLocked(true)} onUnlock={() => setIsLocked(false)} isXR={isXR} />
 
           {taskMode === 'dragdrop' && dragTask ? (
