@@ -46,17 +46,24 @@ export interface AnswerOption {
   text: string;
 }
 
+export interface DDItem { id: string; text: string; }
+export interface DDZone { id: string; label: string; correctItemId: string; }
+export interface DragDropData { items: DDItem[]; zones: DDZone[]; }
+
 export interface Question {
   questionId: number;
   text: string;
   difficultyLevel: number;
+  questionType: 'mcq' | 'dragdrop';
+  dragDropData?: DragDropData;
   answers: AnswerOption[];
 }
 
 export interface SubmitAnswerDto {
   sessionId: number;
   questionId: number;
-  selectedAnswerId: number;
+  selectedAnswerId?: number;
+  dragDropIsCorrect?: boolean;
   timeSpentSeconds: number;
 }
 

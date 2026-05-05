@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using VRCourses.API.Data;
 using VRCourses.API.Models.DTOs;
 using VRCourses.API.Models.Entities;
@@ -76,11 +77,17 @@ public class QuizService : IQuizService
 
         if (question == null) return null;
 
+        object? dragDropData = null;
+        if (question.QuestionType == "dragdrop" && question.DragDropDataJson != null)
+            dragDropData = JsonSerializer.Deserialize<object>(question.DragDropDataJson);
+
         return new QuestionDto
         {
             QuestionId = question.Id,
             Text = question.Text,
             DifficultyLevel = question.DifficultyLevel,
+            QuestionType = question.QuestionType,
+            DragDropData = dragDropData,
             Answers = question.Answers.Select(a => new AnswerOptionDto
             {
                 AnswerId = a.Id,
@@ -99,23 +106,40 @@ public class QuizService : IQuizService
         if (session == null)
             throw new Exception("Session not found");
 
-        var answer = await _context.Answers
-            .FirstOrDefaultAsync(a => a.Id == dto.SelectedAnswerId);
-
-        if (answer == null)
-            throw new Exception($"Answer with ID {dto.SelectedAnswerId} not found");
-
         var question = await _context.Questions.FindAsync(dto.QuestionId);
         if (question == null)
             throw new Exception($"Question with ID {dto.QuestionId} not found");
+
+        bool isCorrect;
+        int? selectedAnswerId = null;
+
+        if (question.QuestionType == "dragdrop")
+        {
+            if (dto.DragDropIsCorrect == null)
+                throw new Exception("DragDropIsCorrect is required for drag & drop questions");
+            isCorrect = dto.DragDropIsCorrect.Value;
+        }
+        else
+        {
+            if (dto.SelectedAnswerId == null)
+                throw new Exception("SelectedAnswerId is required for MCQ questions");
+
+            var answer = await _context.Answers
+                .FirstOrDefaultAsync(a => a.Id == dto.SelectedAnswerId);
+            if (answer == null)
+                throw new Exception($"Answer with ID {dto.SelectedAnswerId} not found");
+
+            isCorrect = answer.IsCorrect;
+            selectedAnswerId = dto.SelectedAnswerId;
+        }
 
         // Сохранить попытку
         var attempt = new QuizAttempt
         {
             SessionId = dto.SessionId,
             QuestionId = dto.QuestionId,
-            SelectedAnswerId = dto.SelectedAnswerId,
-            IsCorrect = answer.IsCorrect,
+            SelectedAnswerId = selectedAnswerId,
+            IsCorrect = isCorrect,
             TimeSpentSeconds = dto.TimeSpentSeconds,
             Timestamp = DateTime.UtcNow
         };
@@ -140,9 +164,9 @@ public class QuizService : IQuizService
 
         return new SubmitAnswerResultDto
         {
-            IsCorrect = answer.IsCorrect,
+            IsCorrect = isCorrect,
             NewDifficulty = newDifficulty,
-            Feedback = answer.IsCorrect ? "Correct!" : "Incorrect. Try again!"
+            Feedback = isCorrect ? "Correct!" : "Incorrect. Try again!"
         };
     }
 

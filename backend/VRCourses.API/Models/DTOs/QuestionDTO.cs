@@ -5,6 +5,8 @@ public class QuestionDto
     public int QuestionId { get; set; }
     public string Text { get; set; } = string.Empty;
     public int DifficultyLevel { get; set; }
+    public string QuestionType { get; set; } = "mcq";
+    public object? DragDropData { get; set; }
     public List<AnswerOptionDto> Answers { get; set; } = new();
 }
 
@@ -18,8 +20,9 @@ public class SubmitAnswerDto
 {
     public int SessionId { get; set; }
     public int QuestionId { get; set; }
-    public int SelectedAnswerId { get; set; }
+    public int? SelectedAnswerId { get; set; }       // null for dragdrop
     public int TimeSpentSeconds { get; set; }
+    public bool? DragDropIsCorrect { get; set; }     // used when QuestionType == "dragdrop"
 }
 
 public class SubmitAnswerResultDto

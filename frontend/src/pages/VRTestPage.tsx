@@ -6,7 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { useAuthStore } from '@/stores/authStore';
 import { quizApi } from '@/api/quiz';
-import type { Question, SubmitAnswerResult, SessionStats } from '@/types';
+import { coursesApi } from '@/api/courses';
+import type { Question, SubmitAnswerResult, SessionStats, Course } from '@/types';
 import { generateShapeTask, validateDragDrop } from '@/utils/TaskGenerator';
 import type { DragDropTask, ShapeItem, DropZone } from '@/utils/TaskGenerator';
 
@@ -558,6 +559,174 @@ function DragDropScene({ task, onComplete }: {
   );
 }
 
+// ─── TextDragDropScene ────────────────────────────────────────────────────────
+
+function TextDragDropScene({
+  question,
+  onComplete,
+}: {
+  question: Question;
+  onComplete: (isCorrect: boolean) => void;
+}) {
+  const data = question.dragDropData!;
+  const [placements, setPlacements] = useState<Map<string, string>>(new Map());
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const selectedRef = useRef<string | null>(null);
+  const { isPresenting } = useXR((s) => ({ isPresenting: s.isPresenting }));
+
+  useEffect(() => {
+    setPlacements(new Map());
+    setSelectedItemId(null);
+    selectedRef.current = null;
+  }, [question.questionId]);
+
+  const handleItemClick = useCallback((itemId: string) => {
+    const next = selectedRef.current === itemId ? null : itemId;
+    selectedRef.current = next;
+    setSelectedItemId(next);
+    setPlacements(prev => {
+      if (!prev.has(itemId)) return prev;
+      const m = new Map(prev);
+      m.delete(itemId);
+      return m;
+    });
+  }, []);
+
+  const handleZoneClick = useCallback((zoneId: string) => {
+    const itemId = selectedRef.current;
+    if (!itemId) return;
+    setPlacements(prev => {
+      const m = new Map(prev);
+      for (const [iid, zid] of m) {
+        if (zid === zoneId) { m.delete(iid); break; }
+      }
+      m.set(itemId, zoneId);
+      return m;
+    });
+    selectedRef.current = null;
+    setSelectedItemId(null);
+  }, []);
+
+  const allPlaced = placements.size === data.items.length;
+
+  const handleSubmit = useCallback(() => {
+    if (!allPlaced) return;
+    const isCorrect = data.zones.every(zone => {
+      const placed = Array.from(placements.entries()).find(([, zid]) => zid === zone.id)?.[0];
+      return placed === zone.correctItemId;
+    });
+    onComplete(isCorrect);
+  }, [allPlaced, placements, data, onComplete]);
+
+  const PANEL_W = 1.6;
+  const PANEL_H = 1.7;
+  const ZONE_H = 0.18;
+  const ZONE_Y_START = 0.54;
+  const ZONE_STEP = 0.215;
+
+  return (
+    <group position={[0, 1.5, -2.2]}>
+      <PanelBg width={PANEL_W} height={PANEL_H} />
+
+      <Text position={[0, 0.77, 0.01]} fontSize={0.032} color="#00e5c8" anchorX="center" maxWidth={1.5} textAlign="center">
+        {question.text}
+      </Text>
+
+      {data.zones.map((zone, idx) => {
+        const y = ZONE_Y_START - idx * ZONE_STEP;
+        const placedItemId = Array.from(placements.entries()).find(([, zid]) => zid === zone.id)?.[0];
+        const placedItem = data.items.find(i => i.id === placedItemId);
+        const isActiveTarget = selectedItemId !== null;
+
+        return (
+          <group key={zone.id} position={[0, y, 0.01]}>
+            <mesh>
+              <planeGeometry args={[PANEL_W - 0.06, ZONE_H]} />
+              <meshStandardMaterial color={placedItem ? '#0d2d2d' : '#111827'} transparent opacity={0.95} />
+            </mesh>
+            {isActiveTarget && !placedItem && (
+              <mesh position={[0, 0, -0.001]}>
+                <planeGeometry args={[PANEL_W - 0.04, ZONE_H + 0.01]} />
+                <meshStandardMaterial color="#00e5c8" transparent opacity={0.12} />
+              </mesh>
+            )}
+            <Interactive onSelect={() => handleZoneClick(zone.id)}>
+              <mesh position={[0.25, 0, 0.005]}>
+                <planeGeometry args={[0.9, ZONE_H - 0.02]} />
+                <meshStandardMaterial transparent opacity={0} />
+              </mesh>
+            </Interactive>
+            <Text position={[-0.72, 0, 0.01]} fontSize={0.022} color="#94a3b8" anchorX="left" maxWidth={0.62} textAlign="left">
+              {zone.label}
+            </Text>
+            <mesh position={[-0.09, 0, 0.005]}>
+              <planeGeometry args={[0.002, ZONE_H - 0.02]} />
+              <meshStandardMaterial color="#334155" />
+            </mesh>
+            <Text position={[-0.05, 0, 0.01]} fontSize={0.026} color={placedItem ? '#e2e8f0' : isActiveTarget ? '#475569' : '#334155'} anchorX="left" maxWidth={0.85}>
+              {placedItem ? placedItem.text : (isActiveTarget ? '← click to place' : '···')}
+            </Text>
+          </group>
+        );
+      })}
+
+      <Text position={[-0.72, -0.43, 0.01]} fontSize={0.024} color="#64748b" anchorX="left">
+        {selectedItemId ? 'Selected — click a zone to place:' : 'Click an item to select:'}
+      </Text>
+
+      {data.items.map((item, idx) => {
+        const col = idx % 2;
+        const row = Math.floor(idx / 2);
+        const x = col === 0 ? -0.40 : 0.40;
+        const y = -0.54 - row * 0.115;
+        const isSelected = selectedItemId === item.id;
+        const isPlaced = placements.has(item.id);
+
+        return (
+          <group key={item.id} position={[x, y, 0.01]}>
+            {isSelected && (
+              <mesh position={[0, 0, 0.004]}>
+                <planeGeometry args={[0.76, 0.098]} />
+                <meshStandardMaterial color="#00e5c8" transparent opacity={0.22} />
+              </mesh>
+            )}
+            <Interactive onSelect={() => handleItemClick(item.id)}>
+              <mesh>
+                <planeGeometry args={[0.75, 0.092]} />
+                <meshStandardMaterial
+                  color={isPlaced ? '#060810' : isSelected ? '#0d2d2d' : '#111827'}
+                  transparent opacity={isPlaced ? 0.45 : 0.95}
+                />
+              </mesh>
+            </Interactive>
+            <Text position={[0, 0, 0.02]} fontSize={0.026} color={isPlaced ? '#2d3748' : isSelected ? '#00e5c8' : '#e2e8f0'} anchorX="center" maxWidth={0.70}>
+              {item.text}
+            </Text>
+          </group>
+        );
+      })}
+
+      <group position={[0, -0.74, 0.01]}>
+        <Interactive onSelect={allPlaced ? handleSubmit : () => undefined}>
+          <mesh>
+            <planeGeometry args={[1.2, 0.092]} />
+            <meshStandardMaterial color={allPlaced ? '#00e5c8' : '#0d2d2d'} transparent opacity={allPlaced ? 1 : 0.5} />
+          </mesh>
+        </Interactive>
+        <Text position={[0, 0, 0.02]} fontSize={0.042} color={allPlaced ? '#0a0c12' : '#334155'} anchorX="center">
+          {allPlaced ? 'Submit' : `Place ${data.items.length - placements.size} more`}
+        </Text>
+      </group>
+
+      {selectedItemId && (
+        <Text position={[0, -0.655, 0.01]} fontSize={0.026} color="#a78bfa" anchorX="center">
+          {isPresenting ? 'Point at a zone and squeeze trigger' : 'Now click a zone above'}
+        </Text>
+      )}
+    </group>
+  );
+}
+
 // ─── MainTaskPanel ────────────────────────────────────────────────────────────
 
 interface MainTaskPanelProps {
@@ -572,11 +741,15 @@ interface MainTaskPanelProps {
   currentDifficulty: number;
   isFinished: boolean;
   finalStats: SessionStats | null;
+  courses: Course[];
+  selectedCourseId: number | null;
+  onSelectCourse: (id: number) => void;
 }
 
 function MainTaskPanel({
   question, stats, selectedAnswer, onSelect, onSubmit, onStart,
   sessionId, isLoading, currentDifficulty, isFinished, finalStats,
+  courses, selectedCourseId, onSelectCourse,
 }: MainTaskPanelProps) {
   const progressFill = 1.2 * (stats.total / MAX_QUESTIONS);
   const progressFillX = -1.2 / 2 + progressFill / 2;
@@ -613,24 +786,69 @@ function MainTaskPanel({
   }
 
   if (!sessionId || !question) {
+    const panelH = 0.6 + Math.max(0, courses.length - 1) * 0.115;
     return (
       <group position={[0, 1.5, -2.2]}>
-        <PanelBg width={1.4} height={0.6} />
-        <Text position={[0, 0.18, 0.01]} fontSize={0.058} color="#00e5c8" anchorX="center" fontWeight="bold">
+        <PanelBg width={1.4} height={panelH} />
+        <Text position={[0, panelH / 2 - 0.08, 0.01]} fontSize={0.058} color="#00e5c8" anchorX="center" fontWeight="bold">
           VR Quiz
         </Text>
-        <Text position={[0, 0.04, 0.01]} fontSize={0.036} color="#64748b" anchorX="center">
+        <Text position={[0, panelH / 2 - 0.16, 0.01]} fontSize={0.032} color="#64748b" anchorX="center">
           Adaptive difficulty · 10 questions
         </Text>
-        <group position={[0, -0.1, 0.01]}>
-          <Interactive onSelect={onStart}>
+
+        {/* Course selection */}
+        {courses.length > 0 && (
+          <>
+            <Text position={[-0.55, panelH / 2 - 0.26, 0.01]} fontSize={0.03} color="#94a3b8" anchorX="left">
+              Select course:
+            </Text>
+            {courses.map((course, idx) => {
+              const isSelected = selectedCourseId === course.id;
+              const yPos = panelH / 2 - 0.36 - idx * 0.115;
+              return (
+                <group key={course.id} position={[0, yPos, 0.01]}>
+                  {isSelected && (
+                    <mesh position={[0, 0, 0.004]}>
+                      <planeGeometry args={[1.22, 0.1]} />
+                      <meshStandardMaterial color="#00e5c8" transparent opacity={0.18} />
+                    </mesh>
+                  )}
+                  <Interactive onSelect={() => onSelectCourse(course.id)}>
+                    <mesh>
+                      <planeGeometry args={[1.2, 0.095]} />
+                      <meshStandardMaterial color={isSelected ? '#0d2d2d' : '#111827'} transparent opacity={0.95} />
+                    </mesh>
+                  </Interactive>
+                  <Text position={[-0.52, 0, 0.02]} fontSize={0.033} color={isSelected ? '#00e5c8' : '#64748b'} anchorX="left">
+                    {isSelected ? '▶' : '○'}
+                  </Text>
+                  <Text position={[-0.42, 0.015, 0.02]} fontSize={0.033} color={isSelected ? '#e2e8f0' : '#94a3b8'} anchorX="left" maxWidth={0.9}>
+                    {course.title}
+                  </Text>
+                  <Text position={[-0.42, -0.022, 0.02]} fontSize={0.024} color="#475569" anchorX="left" maxWidth={0.9}>
+                    {`${course.difficulty} · ${course.durationMinutes} min`}
+                  </Text>
+                </group>
+              );
+            })}
+          </>
+        )}
+
+        {/* Start button */}
+        <group position={[0, -panelH / 2 + 0.08, 0.01]}>
+          <Interactive onSelect={selectedCourseId !== null ? onStart : () => undefined}>
             <mesh>
               <planeGeometry args={[0.6, 0.1]} />
-              <meshStandardMaterial color="#00e5c8" transparent opacity={isLoading ? 0.5 : 1} />
+              <meshStandardMaterial
+                color={selectedCourseId !== null ? '#00e5c8' : '#1e293b'}
+                transparent
+                opacity={isLoading || selectedCourseId === null ? 0.5 : 1}
+              />
             </mesh>
           </Interactive>
-          <Text position={[0, 0, 0.02]} fontSize={0.048} color="#0a0c12" anchorX="center">
-            {isLoading ? 'Loading...' : 'Start Quiz'}
+          <Text position={[0, 0, 0.02]} fontSize={0.044} color={selectedCourseId !== null ? '#0a0c12' : '#475569'} anchorX="center">
+            {isLoading ? 'Loading...' : selectedCourseId === null ? 'Choose course' : 'Start Quiz'}
           </Text>
         </group>
       </group>
@@ -795,6 +1013,19 @@ export function VRTestPage() {
   const [finalStats, setFinalStats]         = useState<SessionStats | null>(null);
   const [isXR, setIsXR]                     = useState(false);
 
+  // course selection
+  const [courses, setCourses]               = useState<Course[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+
+  useEffect(() => {
+    coursesApi.getAll()
+      .then((list) => {
+        setCourses(list);
+        if (list.length > 0) setSelectedCourseId(list[0].id);
+      })
+      .catch(console.error);
+  }, []);
+
   // drag-drop state
   const [taskMode, setTaskMode]   = useState<'mcq' | 'dragdrop'>('mcq');
   const [dragTask, setDragTask]   = useState<DragDropTask | null>(null);
@@ -816,6 +1047,7 @@ export function VRTestPage() {
   };
 
   const startQuiz = async () => {
+    if (selectedCourseId === null) return;
     setIsLoading(true);
     setIsFinished(false);
     setFinalStats(null);
@@ -825,7 +1057,7 @@ export function VRTestPage() {
     setDragTask(null);
     setTaskIndex(0);
     try {
-      const session = await quizApi.startSession(1);
+      const session = await quizApi.startSession(selectedCourseId);
       setSessionId(session.sessionId);
       await fetchNextQuestion(session.sessionId);
     } catch (err) {
@@ -872,10 +1104,6 @@ export function VRTestPage() {
 
       if (newTotal >= MAX_QUESTIONS) {
         await finishSession(sessionId, newCorrect, newTotal, result.newDifficulty);
-      } else if (newIndex % 2 === 1) {
-        // every odd question → drag-drop interlude
-        setDragTask(generateShapeTask(result.newDifficulty, newIndex));
-        setTaskMode('dragdrop');
       } else {
         await fetchNextQuestion(sessionId);
       }
@@ -906,6 +1134,37 @@ export function VRTestPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, stats, taskIndex, currentDifficulty]);
+
+  const handleDbDragDropComplete = useCallback(async (isCorrect: boolean) => {
+    if (!question || !sessionId) return;
+    setIsLoading(true);
+    const timeSpent = timeStarted ? Math.round((Date.now() - timeStarted.getTime()) / 1000) : 0;
+    try {
+      const result: SubmitAnswerResult = await quizApi.submitAnswer({
+        sessionId, questionId: question.questionId,
+        dragDropIsCorrect: isCorrect, timeSpentSeconds: timeSpent,
+      });
+      const newTotal   = stats.total + 1;
+      const newCorrect = stats.correct + (result.isCorrect ? 1 : 0);
+      const newStreak  = result.isCorrect ? stats.streak + 1 : 0;
+      setStats({ correct: newCorrect, total: newTotal, streak: newStreak });
+      setCurrentDifficulty(result.newDifficulty);
+
+      const newIndex = taskIndex + 1;
+      setTaskIndex(newIndex);
+
+      if (newTotal >= MAX_QUESTIONS) {
+        await finishSession(sessionId, newCorrect, newTotal, result.newDifficulty);
+      } else {
+        await fetchNextQuestion(sessionId);
+      }
+    } catch (err) {
+      console.error('handleDbDragDropComplete failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question, sessionId, stats, taskIndex, timeStarted]);
 
   if (!token) {
     return (
@@ -1014,6 +1273,8 @@ export function VRTestPage() {
 
           {taskMode === 'dragdrop' && dragTask ? (
             <DragDropScene task={dragTask} onComplete={handleDragDropComplete} />
+          ) : question?.questionType === 'dragdrop' && question.dragDropData ? (
+            <TextDragDropScene question={question} onComplete={handleDbDragDropComplete} />
           ) : (
             <MainTaskPanel
               question={question}
@@ -1027,6 +1288,9 @@ export function VRTestPage() {
               currentDifficulty={currentDifficulty}
               isFinished={isFinished}
               finalStats={finalStats}
+              courses={courses}
+              selectedCourseId={selectedCourseId}
+              onSelectCourse={setSelectedCourseId}
             />
           )}
 
