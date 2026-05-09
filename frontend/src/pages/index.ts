@@ -8,3 +8,4 @@ export { NotFoundPage } from './NotFoundPage';
 export { VRTestPage } from './VRTestPage';
 export { MlDebugPage } from './MlDebugPage';
 export { DashboardPage } from './DashboardPage';
+export { InstructorPage } from './InstructorPage';

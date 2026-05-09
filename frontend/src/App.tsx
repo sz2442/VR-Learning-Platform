@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
 
-import { Layout, QuizLayout, ProtectedRoute } from '@/components/layout';
+import { Layout, QuizLayout, ProtectedRoute, RoleRoute } from '@/components/layout';
 import {
   HomePage,
   LoginPage,
@@ -15,6 +15,7 @@ import {
   VRTestPage,
   MlDebugPage,
   DashboardPage,
+  InstructorPage,
 } from '@/pages';
 
 const queryClient = new QueryClient({
@@ -65,6 +66,13 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<QuizLayout />}>
               <Route path="/quiz/:sessionId" element={<QuizPage />} />
+            </Route>
+          </Route>
+
+          {/* Instructor route — role-guarded, with layout */}
+          <Route element={<RoleRoute role="Instructor" />}>
+            <Route element={<Layout />}>
+              <Route path="/instructor" element={<InstructorPage />} />
             </Route>
           </Route>
 

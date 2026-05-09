@@ -15,6 +15,7 @@ export function Header() {
     { href: '/', label: 'Courses' },
     { href: '/my-learning', label: 'My Learning', auth: true },
     { href: '/dashboard', label: 'Dashboard', auth: true, role: 'Student' },
+    { href: '/instructor', label: 'Dashboard', auth: true, role: 'Instructor' },
   ];
 
   return (

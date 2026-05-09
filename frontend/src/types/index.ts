@@ -234,3 +234,87 @@ export interface AccuracyPoint {
   accuracy: number;
   difficulty: number;
 }
+
+// Instructor dashboard types
+export interface InstructorStats {
+  totalStudents: number;
+  totalCourses: number;
+  averageAccuracy: number;
+  activeSessionsToday: number;
+}
+
+export interface InstructorStudent {
+  userId: number;
+  email: string;
+  courseTitle: string;
+  modulesCompleted: number;
+  modulesTotal: number;
+  averageAccuracy: number;
+  bestDifficulty: number;
+  lastSessionDate: string | null;
+  totalSessions: number;
+}
+
+export interface StudentSessionRow {
+  date: string;
+  accuracy: number;
+  finalDifficulty: number;
+  questionsAnswered: number;
+  durationMinutes: number;
+}
+
+export interface WeakQuestion {
+  questionId: number;
+  questionText: string;
+  incorrectCount: number;
+  totalAttempts: number;
+}
+
+export interface StudentDetail {
+  email: string;
+  sessions: StudentSessionRow[];
+  weakQuestions: WeakQuestion[];
+}
+
+export interface AnswerItem {
+  id: number;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface CourseQuestionItem {
+  questionId: number;
+  text: string;
+  difficultyLevel: number;
+  questionType: string;
+  totalAttempts: number;
+  incorrectRate: number;
+  answers: AnswerItem[];
+}
+
+export interface CourseQuestionGroup {
+  moduleTitle: string;
+  moduleId: number;
+  questions: CourseQuestionItem[];
+}
+
+export interface SaveAnswerItem {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface SaveQuestionPayload {
+  courseId: number;
+  moduleId?: number | null;
+  text: string;
+  difficultyLevel: number;
+  category: string;
+  questionType: string;
+  quizType?: string | null;
+  answers: SaveAnswerItem[];
+}
+
+export interface DailyActive {
+  date: string;
+  count: number;
+}
