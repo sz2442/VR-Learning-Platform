@@ -47,3 +47,15 @@ public record CourseProgressDto(
     bool FinalQuizUnlocked,
     List<ModuleProgressDto> Modules
 );
+
+public record RecordVrMiniQuizDto(
+    int ModuleId,
+    int CourseId,
+    bool Passed,
+    int Score
+);
+
+public record RecordVrMiniQuizResultDto(
+    bool Passed,
+    bool NextModuleUnlocked
+);

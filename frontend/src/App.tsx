@@ -40,7 +40,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* VR test — public, no layout */}
+          {/* VR test — public, no layout (legacy route, course selector shown) */}
           <Route path="/vr-test" element={<VRTestPage />} />
 
           {/* Protected routes with main layout */}
@@ -48,6 +48,14 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/my-learning" element={<MyLearningPage />} />
             </Route>
+          </Route>
+
+          {/* VR quiz routes — protected, no layout */}
+          <Route element={<ProtectedRoute />}>
+            {/* Mini quiz: /vr-quiz/:courseId/:moduleId/:quizType (e.g. /vr-quiz/1/3/mini) */}
+            <Route path="/vr-quiz/:courseId/:moduleId/:quizType" element={<VRTestPage />} />
+            {/* Final quiz: /vr-quiz/:courseId/:quizType (e.g. /vr-quiz/1/final) */}
+            <Route path="/vr-quiz/:courseId/:quizType" element={<VRTestPage />} />
           </Route>
 
           {/* Quiz routes (minimal layout) */}

@@ -2,8 +2,15 @@ import apiClient from './client';
 import type { Question, SubmitAnswerDto, SubmitAnswerResult, SessionStats, QuizSession } from '@/types';
 
 export const quizApi = {
-  startSession: async (courseId: number): Promise<QuizSession> => {
-    const response = await apiClient.post<QuizSession>(`/quiz/start?courseId=${courseId}`);
+  startSession: async (
+    courseId: number,
+    moduleId?: number,
+    quizType?: 'mini' | 'final',
+  ): Promise<QuizSession> => {
+    const params = new URLSearchParams({ courseId: String(courseId) });
+    if (moduleId != null) params.append('moduleId', String(moduleId));
+    if (quizType)         params.append('quizType', quizType);
+    const response = await apiClient.post<QuizSession>(`/quiz/start?${params}`);
     return response.data;
   },
 
@@ -20,5 +27,9 @@ export const quizApi = {
   getStats: async (sessionId: number): Promise<SessionStats> => {
     const response = await apiClient.get<SessionStats>(`/quiz/stats?sessionId=${sessionId}`);
     return response.data;
+  },
+
+  endSession: async (sessionId: number): Promise<void> => {
+    await apiClient.post(`/quiz/end?sessionId=${sessionId}`);
   },
 };

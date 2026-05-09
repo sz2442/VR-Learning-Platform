@@ -95,6 +95,14 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("🔄 Applying database migrations...");
         await context.Database.MigrateAsync();
         Console.WriteLine("✅ Migrations applied successfully");
+
+        // Idempotent guard: ensure ModuleId/QuizType columns exist even when
+        // the EF Core migration discovery skips the manual migration file.
+        await context.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE ""QuizSessions"" ADD COLUMN IF NOT EXISTS ""ModuleId"" integer;
+            ALTER TABLE ""QuizSessions"" ADD COLUMN IF NOT EXISTS ""QuizType""  text;
+        ");
+        Console.WriteLine("✅ QuizSessions schema columns verified");
         
         Console.WriteLine("🌱 Seeding database...");
         await SeedData.SeedQuestionsAsync(context);

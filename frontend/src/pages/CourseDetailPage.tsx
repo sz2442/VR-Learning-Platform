@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, BarChart3, Play } from 'lucide-react';
@@ -11,7 +11,9 @@ import { ModuleSidebar } from '@/components/course/ModuleSidebar';
 import { LessonView } from '@/components/course/LessonView';
 import { MiniQuizView } from '@/components/course/MiniQuizView';
 import { CourseProgress } from '@/components/course/CourseProgress';
-import type { CourseModule } from '@/types';
+import { courseStructureApi } from '@/api/courseStructure';
+import { useQueryClient } from '@tanstack/react-query';
+import type { CourseModule, VrQuizResult } from '@/types';
 
 type ContentView =
   | { type: 'lesson'; lessonId: number; moduleId: number }
@@ -28,8 +30,35 @@ export function CourseDetailPage() {
   const { data: course, isLoading: courseLoading } = useCourse(courseId);
   const { data: structure, isLoading: structureLoading } = useCourseStructure(courseId);
   const { mutate: startQuiz, isPending: isStarting } = useStartQuiz();
+  const queryClient = useQueryClient();
 
   const [activeView, setActiveView] = useState<ContentView>(null);
+
+  // Pick up VR mini quiz result saved to localStorage after returning from VR scene
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const key = `vr_quiz_result_${courseId}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    try {
+      const result: VrQuizResult = JSON.parse(raw);
+      localStorage.removeItem(key);
+      courseStructureApi
+        .recordVrMiniQuiz({
+          moduleId: result.moduleId,
+          courseId: result.courseId,
+          passed:   result.passed,
+          score:    result.score,
+        })
+        .then(() => {
+          // Refresh course structure so the module lock/unlock state updates
+          queryClient.invalidateQueries({ queryKey: ['course-structure', courseId] });
+        })
+        .catch(console.error);
+    } catch {
+      localStorage.removeItem(key);
+    }
+  }, [courseId, isAuthenticated, queryClient]);
 
   const isLoading = courseLoading || (isAuthenticated && structureLoading);
 
@@ -93,10 +122,20 @@ export function CourseDetailPage() {
             This is the adaptive final assessment. It uses AI to adjust question difficulty in real time
             based on your performance. Good luck!
           </p>
-          <Button variant="primary" size="lg" onClick={handleStartFinalQuiz} isLoading={isStarting}>
-            <Play className="mr-2 h-5 w-5" />
-            Start Final Quiz
-          </Button>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Button variant="primary" size="lg" onClick={handleStartFinalQuiz} isLoading={isStarting}>
+              <Play className="mr-2 h-5 w-5" />
+              Start Final Quiz
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate(`/vr-quiz/${courseId}/final`)}
+            >
+              <Play className="mr-2 h-5 w-5" />
+              Start in VR
+            </Button>
+          </div>
         </div>
       );
     }
@@ -120,17 +159,32 @@ export function CourseDetailPage() {
       const mod = getActiveModule();
       if (!mod) return null;
       return (
-        <MiniQuizView
-          key={activeView.moduleId}
-          moduleId={activeView.moduleId}
-          moduleTitle={mod.title}
-          courseId={courseId}
-          isPassed={mod.miniQuiz?.isPassed ?? false}
-          passingScore={mod.miniQuiz?.passingScore ?? 70}
-          onPass={() => {
-            // sidebar will refresh via query invalidation
-          }}
-        />
+        <div>
+          <MiniQuizView
+            key={activeView.moduleId}
+            moduleId={activeView.moduleId}
+            moduleTitle={mod.title}
+            courseId={courseId}
+            isPassed={mod.miniQuiz?.isPassed ?? false}
+            passingScore={mod.miniQuiz?.passingScore ?? 70}
+            onPass={() => {
+              // sidebar will refresh via query invalidation
+            }}
+          />
+          {/* VR alternative — only show when quiz not yet passed */}
+          {!mod.miniQuiz?.isPassed && (
+            <div className="flex justify-center mt-4 pb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/vr-quiz/${courseId}/${activeView.moduleId}/mini`)}
+              >
+                <Play className="mr-2 h-4 w-4" />
+                Take Mini Quiz in VR instead
+              </Button>
+            </div>
+          )}
+        </div>
       );
     }
 

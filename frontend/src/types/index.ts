@@ -82,6 +82,17 @@ export interface SessionStats {
 
 export interface QuizSession {
   sessionId: number;
+  quizType: string | null;   // "mini" | "final" | null
+  maxQuestions: number;      // 8 / 20 / 10
+}
+
+export interface VrQuizResult {
+  moduleId: number;
+  courseId: number;
+  passed: boolean;
+  accuracy: number;
+  score: number;
+  completedAt: string;
 }
 
 // API Response wrapper

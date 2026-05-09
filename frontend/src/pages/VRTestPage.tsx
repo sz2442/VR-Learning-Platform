@@ -2,18 +2,18 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, PointerLockControls, useGLTF, Text } from '@react-three/drei';
 import { XR, Controllers, Hands, VRButton, Interactive, useController, useXR } from '@react-three/xr';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import * as THREE from 'three';
 import { useAuthStore } from '@/stores/authStore';
 import { quizApi } from '@/api/quiz';
 import { coursesApi } from '@/api/courses';
-import type { Question, SubmitAnswerResult, SessionStats, Course } from '@/types';
+import type { Question, SubmitAnswerResult, SessionStats, Course, VrQuizResult } from '@/types';
 import { generateShapeTask, validateDragDrop } from '@/utils/TaskGenerator';
 import type { DragDropTask, ShapeItem, DropZone } from '@/utils/TaskGenerator';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
-const MAX_QUESTIONS = 10;
+const DEFAULT_MAX_QUESTIONS = 10;
 const ANSWER_LABELS = ['A', 'B', 'C', 'D'];
 const WALK_SPEED = 5.0;
 const SPRINT_SPEED = 15.0;
@@ -736,6 +736,10 @@ interface MainTaskPanelProps {
   onSelect: (answerId: number) => void;
   onSubmit: () => void;
   onStart: () => void;
+  onExit: () => void;
+  onExitConfirm: () => void;
+  onExitCancel: () => void;
+  showExitConfirm: boolean;
   sessionId: number | null;
   isLoading: boolean;
   currentDifficulty: number;
@@ -744,48 +748,150 @@ interface MainTaskPanelProps {
   courses: Course[];
   selectedCourseId: number | null;
   onSelectCourse: (id: number) => void;
+  maxQuestions: number;
+  hasCourseParam: boolean;
+  quizType: string | null;
 }
 
 function MainTaskPanel({
-  question, stats, selectedAnswer, onSelect, onSubmit, onStart,
+  question, stats, selectedAnswer, onSelect, onSubmit, onStart, onExit,
+  onExitConfirm, onExitCancel, showExitConfirm,
   sessionId, isLoading, currentDifficulty, isFinished, finalStats,
   courses, selectedCourseId, onSelectCourse,
+  maxQuestions, hasCourseParam, quizType,
 }: MainTaskPanelProps) {
-  const progressFill = 1.2 * (stats.total / MAX_QUESTIONS);
+  const progressFill = 1.2 * (stats.total / maxQuestions);
   const progressFillX = -1.2 / 2 + progressFill / 2;
 
-  if (isFinished && finalStats) {
+  const quizLabel = quizType === 'mini' ? 'Mini Quiz' : quizType === 'final' ? 'Final Quiz' : 'VR Quiz';
+
+  // ── Exit confirmation overlay ─────────────────────────────────────────────
+  if (showExitConfirm) {
     return (
       <group position={[0, 1.5, -2.2]}>
-        <PanelBg width={1.4} height={0.8} />
-        <Text position={[0, 0.28, 0.01]} fontSize={0.058} color="#00e5c8" anchorX="center" fontWeight="bold">
-          Quiz Complete!
+        <PanelBg width={1.4} height={0.6} />
+        <Text position={[0, 0.2, 0.01]} fontSize={0.044} color="#f59e0b" anchorX="center" fontWeight="bold">
+          Exit Quiz?
         </Text>
-        <Text position={[0, 0.12, 0.01]} fontSize={0.04} color="#e2e8f0" anchorX="center">
-          {`Score: ${finalStats.correctAnswers} / ${finalStats.totalQuestions}`}
+        <Text position={[0, 0.06, 0.01]} fontSize={0.032} color="#94a3b8" anchorX="center" maxWidth={1.2} textAlign="center">
+          Your progress so far will be saved.
         </Text>
-        <Text position={[0, 0.0, 0.01]} fontSize={0.04} color="#e2e8f0" anchorX="center">
-          {`Accuracy: ${finalStats.accuracy.toFixed(1)}%`}
-        </Text>
-        <Text position={[0, -0.12, 0.01]} fontSize={0.04} color="#a78bfa" anchorX="center">
-          {`Final Difficulty: ${finalStats.finalDifficulty}/10`}
-        </Text>
-        <group position={[0, -0.28, 0.01]}>
-          <Interactive onSelect={onStart}>
+        {/* Confirm exit */}
+        <group position={[-0.32, -0.1, 0.01]}>
+          <Interactive onSelect={onExitConfirm}>
             <mesh>
-              <planeGeometry args={[0.6, 0.1]} />
-              <meshStandardMaterial color="#00e5c8" />
+              <planeGeometry args={[0.52, 0.1]} />
+              <meshStandardMaterial color="#dc2626" />
             </mesh>
           </Interactive>
-          <Text position={[0, 0, 0.02]} fontSize={0.048} color="#0a0c12" anchorX="center">
-            Play Again
+          <Text position={[0, 0, 0.02]} fontSize={0.040} color="#fff" anchorX="center">
+            Yes, exit
+          </Text>
+        </group>
+        {/* Cancel */}
+        <group position={[0.32, -0.1, 0.01]}>
+          <Interactive onSelect={onExitCancel}>
+            <mesh>
+              <planeGeometry args={[0.52, 0.1]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+          </Interactive>
+          <Text position={[0, 0, 0.02]} fontSize={0.040} color="#94a3b8" anchorX="center">
+            Keep going
           </Text>
         </group>
       </group>
     );
   }
 
+  // ── Results panel ─────────────────────────────────────────────────────────
+  if (isFinished && finalStats) {
+    const passed = finalStats.accuracy >= 70;
+    return (
+      <group position={[0, 1.5, -2.2]}>
+        <PanelBg width={1.4} height={0.95} />
+        <Text position={[0, 0.38, 0.01]} fontSize={0.058} color="#00e5c8" anchorX="center" fontWeight="bold">
+          Quiz Complete!
+        </Text>
+        {quizType === 'mini' && (
+          <Text position={[0, 0.26, 0.01]} fontSize={0.036} color={passed ? '#22c55e' : '#ef4444'} anchorX="center" fontWeight="bold">
+            {passed ? '✓ Passed' : '✗ Not Passed'}
+          </Text>
+        )}
+        <Text position={[0, 0.14, 0.01]} fontSize={0.04} color="#e2e8f0" anchorX="center">
+          {`Score: ${finalStats.correctAnswers} / ${finalStats.totalQuestions}`}
+        </Text>
+        <Text position={[0, 0.02, 0.01]} fontSize={0.04} color="#e2e8f0" anchorX="center">
+          {`Accuracy: ${finalStats.accuracy.toFixed(1)}%`}
+        </Text>
+        {quizType !== 'mini' && (
+          <Text position={[0, -0.1, 0.01]} fontSize={0.04} color="#a78bfa" anchorX="center">
+            {`Final Difficulty: ${finalStats.finalDifficulty}/10`}
+          </Text>
+        )}
+        {/* Play Again */}
+        <group position={hasCourseParam ? [-0.32, -0.26, 0.01] : [0, -0.26, 0.01]}>
+          <Interactive onSelect={onStart}>
+            <mesh>
+              <planeGeometry args={[hasCourseParam ? 0.52 : 0.6, 0.1]} />
+              <meshStandardMaterial color="#1e293b" />
+            </mesh>
+          </Interactive>
+          <Text position={[0, 0, 0.02]} fontSize={0.038} color="#94a3b8" anchorX="center">
+            Play Again
+          </Text>
+        </group>
+        {/* Exit to Course (only when launched from a course page) */}
+        {hasCourseParam && (
+          <group position={[0.32, -0.26, 0.01]}>
+            <Interactive onSelect={onExit}>
+              <mesh>
+                <planeGeometry args={[0.52, 0.1]} />
+                <meshStandardMaterial color="#00e5c8" />
+              </mesh>
+            </Interactive>
+            <Text position={[0, 0, 0.02]} fontSize={0.038} color="#0a0c12" anchorX="center">
+              Exit to Course
+            </Text>
+          </group>
+        )}
+      </group>
+    );
+  }
+
+  // ── Start / course-selector panel ─────────────────────────────────────────
   if (!sessionId || !question) {
+    // When launched from a course page, no course selector needed
+    if (hasCourseParam) {
+      return (
+        <group position={[0, 1.5, -2.2]}>
+          <PanelBg width={1.4} height={0.5} />
+          <Text position={[0, 0.16, 0.01]} fontSize={0.054} color="#00e5c8" anchorX="center" fontWeight="bold">
+            {quizLabel}
+          </Text>
+          <Text position={[0, 0.02, 0.01]} fontSize={0.030} color="#64748b" anchorX="center">
+            {quizType === 'mini'
+              ? `Fixed difficulty · ${maxQuestions} questions · Pass at 70%`
+              : quizType === 'final'
+              ? `Adaptive difficulty · ${maxQuestions} questions`
+              : `Adaptive difficulty · ${maxQuestions} questions`}
+          </Text>
+          <group position={[0, -0.13, 0.01]}>
+            <Interactive onSelect={onStart}>
+              <mesh>
+                <planeGeometry args={[0.6, 0.1]} />
+                <meshStandardMaterial color={isLoading ? '#1e293b' : '#00e5c8'} transparent opacity={isLoading ? 0.5 : 1} />
+              </mesh>
+            </Interactive>
+            <Text position={[0, 0, 0.02]} fontSize={0.044} color={isLoading ? '#475569' : '#0a0c12'} anchorX="center">
+              {isLoading ? 'Loading...' : 'Start Quiz'}
+            </Text>
+          </group>
+        </group>
+      );
+    }
+
+    // Legacy /vr-test route — show course selector
     const panelH = 0.6 + Math.max(0, courses.length - 1) * 0.115;
     return (
       <group position={[0, 1.5, -2.2]}>
@@ -794,10 +900,9 @@ function MainTaskPanel({
           VR Quiz
         </Text>
         <Text position={[0, panelH / 2 - 0.16, 0.01]} fontSize={0.032} color="#64748b" anchorX="center">
-          Adaptive difficulty · 10 questions
+          Adaptive difficulty · {maxQuestions} questions
         </Text>
 
-        {/* Course selection */}
         {courses.length > 0 && (
           <>
             <Text position={[-0.55, panelH / 2 - 0.26, 0.01]} fontSize={0.03} color="#94a3b8" anchorX="left">
@@ -835,7 +940,6 @@ function MainTaskPanel({
           </>
         )}
 
-        {/* Start button */}
         <group position={[0, -panelH / 2 + 0.08, 0.01]}>
           <Interactive onSelect={selectedCourseId !== null ? onStart : () => undefined}>
             <mesh>
@@ -855,15 +959,29 @@ function MainTaskPanel({
     );
   }
 
+  // ── Active question panel ─────────────────────────────────────────────────
   return (
     <group position={[0, 1.5, -2.2]}>
       <PanelBg width={1.4} height={1.2} />
 
-      <Text position={[-0.55, 0.42, 0.01]} fontSize={0.04} color="#64748b" anchorX="left">
-        {`Question ${stats.total + 1} of ${MAX_QUESTIONS}`}
+      {/* Exit button — top-right corner, always visible */}
+      <group position={[0.62, 0.55, 0.01]}>
+        <Interactive onSelect={onExit}>
+          <mesh>
+            <planeGeometry args={[0.14, 0.075]} />
+            <meshStandardMaterial color="#1e293b" transparent opacity={0.9} />
+          </mesh>
+        </Interactive>
+        <Text position={[0, 0, 0.01]} fontSize={0.032} color="#94a3b8" anchorX="center">
+          ✕ Exit
+        </Text>
+      </group>
+
+      <Text position={[-0.45, 0.42, 0.01]} fontSize={0.036} color="#64748b" anchorX="left">
+        {`Q ${stats.total + 1} / ${maxQuestions}`}
       </Text>
-      <Text position={[0.55, 0.42, 0.01]} fontSize={0.04} color="#a78bfa" anchorX="right">
-        {`Difficulty: ${currentDifficulty}/10`}
+      <Text position={[0.45, 0.42, 0.01]} fontSize={0.036} color="#a78bfa" anchorX="right">
+        {quizType === 'mini' ? quizLabel : `Diff: ${currentDifficulty}/10`}
       </Text>
 
       {/* progress bar */}
@@ -999,7 +1117,19 @@ const btnTeal: React.CSSProperties = {
 
 export function VRTestPage() {
   const navigate = useNavigate();
+  const { courseId: paramCourseId, moduleId: paramModuleId, quizType: paramQuizType } = useParams<{
+    courseId?: string;
+    moduleId?: string;
+    quizType?: string;
+  }>();
   const token = useAuthStore.getState().token;
+
+  // Derived from URL params — when set the quiz is tied to a specific module/course
+  const urlCourseId  = paramCourseId  ? Number(paramCourseId)  : null;
+  const urlModuleId  = paramModuleId  ? Number(paramModuleId)  : null;
+  // /vr-quiz/:courseId/final has no :moduleId param; quizType comes from the segment or param
+  const urlQuizType  = (paramQuizType as 'mini' | 'final' | undefined) ?? null;
+  const hasCourseParam = urlCourseId !== null;
 
   const [isLocked, setIsLocked]             = useState(false);
   const [sessionId, setSessionId]           = useState<number | null>(null);
@@ -1012,19 +1142,25 @@ export function VRTestPage() {
   const [isFinished, setIsFinished]         = useState(false);
   const [finalStats, setFinalStats]         = useState<SessionStats | null>(null);
   const [isXR, setIsXR]                     = useState(false);
+  const [maxQuestions, setMaxQuestions]     = useState(DEFAULT_MAX_QUESTIONS);
+  const [activeQuizType, setActiveQuizType] = useState<string | null>(urlQuizType);
 
-  // course selection
+  // Exit-confirmation state
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // course selection (only used on legacy /vr-test route)
   const [courses, setCourses]               = useState<Course[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(urlCourseId);
 
   useEffect(() => {
+    if (hasCourseParam) return; // skip loading all courses when launched from a module
     coursesApi.getAll()
       .then((list) => {
         setCourses(list);
         if (list.length > 0) setSelectedCourseId(list[0].id);
       })
       .catch(console.error);
-  }, []);
+  }, [hasCourseParam]);
 
   // drag-drop state
   const [taskMode, setTaskMode]   = useState<'mcq' | 'dragdrop'>('mcq');
@@ -1056,9 +1192,16 @@ export function VRTestPage() {
     setTaskMode('mcq');
     setDragTask(null);
     setTaskIndex(0);
+    setShowExitConfirm(false);
     try {
-      const session = await quizApi.startSession(selectedCourseId);
+      const session = await quizApi.startSession(
+        selectedCourseId,
+        urlModuleId ?? undefined,
+        urlQuizType ?? undefined,
+      );
       setSessionId(session.sessionId);
+      setMaxQuestions(session.maxQuestions ?? DEFAULT_MAX_QUESTIONS);
+      setActiveQuizType(session.quizType);
       await fetchNextQuestion(session.sessionId);
     } catch (err) {
       console.error('startQuiz failed:', err);
@@ -1068,20 +1211,38 @@ export function VRTestPage() {
   };
 
   const finishSession = async (sid: number, newCorrect: number, newTotal: number, newDifficulty: number) => {
+    let sessionStats: SessionStats;
     try {
-      const sessionStats = await quizApi.getStats(sid);
-      setFinalStats(sessionStats);
+      sessionStats = await quizApi.getStats(sid);
     } catch {
-      // fallback if stats endpoint fails
-      setFinalStats({
+      sessionStats = {
         totalQuestions: newTotal,
         correctAnswers: newCorrect,
         accuracy: newTotal === 0 ? 0 : (newCorrect / newTotal) * 100,
         finalDifficulty: newDifficulty,
-      });
+      };
     }
+    setFinalStats(sessionStats);
     setIsFinished(true);
     setQuestion(null);
+
+    // Mark the session as closed
+    try { await quizApi.endSession(sid); } catch { /* non-fatal */ }
+
+    // Save VR mini quiz result for the course page to pick up
+    if (activeQuizType === 'mini' && urlModuleId !== null && urlCourseId !== null) {
+      const accuracy = sessionStats.accuracy;
+      const passed   = accuracy >= 70;
+      const result: VrQuizResult = {
+        moduleId:    urlModuleId,
+        courseId:    urlCourseId,
+        passed,
+        accuracy,
+        score:       Math.round(accuracy),
+        completedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(`vr_quiz_result_${urlCourseId}`, JSON.stringify(result));
+    }
   };
 
   const submitAnswer = async () => {
@@ -1102,7 +1263,7 @@ export function VRTestPage() {
       const newIndex = taskIndex + 1;
       setTaskIndex(newIndex);
 
-      if (newTotal >= MAX_QUESTIONS) {
+      if (newTotal >= maxQuestions) {
         await finishSession(sessionId, newCorrect, newTotal, result.newDifficulty);
       } else {
         await fetchNextQuestion(sessionId);
@@ -1125,7 +1286,7 @@ export function VRTestPage() {
     const newIndex = taskIndex + 1;
     setTaskIndex(newIndex);
 
-    if (newTotal >= MAX_QUESTIONS) {
+    if (newTotal >= maxQuestions) {
       await finishSession(sessionId, newCorrect, newTotal, currentDifficulty);
     } else {
       setTaskMode('mcq');
@@ -1133,7 +1294,7 @@ export function VRTestPage() {
       await fetchNextQuestion(sessionId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, stats, taskIndex, currentDifficulty]);
+  }, [sessionId, stats, taskIndex, currentDifficulty, maxQuestions]);
 
   const handleDbDragDropComplete = useCallback(async (isCorrect: boolean) => {
     if (!question || !sessionId) return;
@@ -1153,7 +1314,7 @@ export function VRTestPage() {
       const newIndex = taskIndex + 1;
       setTaskIndex(newIndex);
 
-      if (newTotal >= MAX_QUESTIONS) {
+      if (newTotal >= maxQuestions) {
         await finishSession(sessionId, newCorrect, newTotal, result.newDifficulty);
       } else {
         await fetchNextQuestion(sessionId);
@@ -1165,6 +1326,28 @@ export function VRTestPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question, sessionId, stats, taskIndex, timeStarted]);
+
+  // ── Exit handlers ─────────────────────────────────────────────────────────
+
+  const handleExitRequest = useCallback(() => {
+    if (isFinished || !sessionId) {
+      // Already done or no session — go straight back
+      if (urlCourseId) navigate(`/courses/${urlCourseId}`);
+      return;
+    }
+    setShowExitConfirm(true);
+  }, [isFinished, sessionId, urlCourseId, navigate]);
+
+  const handleExitConfirm = useCallback(async () => {
+    if (sessionId) {
+      try { await quizApi.endSession(sessionId); } catch { /* non-fatal */ }
+    }
+    if (urlCourseId) navigate(`/courses/${urlCourseId}`);
+  }, [sessionId, urlCourseId, navigate]);
+
+  const handleExitCancel = useCallback(() => {
+    setShowExitConfirm(false);
+  }, []);
 
   if (!token) {
     return (
@@ -1283,6 +1466,10 @@ export function VRTestPage() {
               onSelect={setSelectedAnswer}
               onSubmit={submitAnswer}
               onStart={startQuiz}
+              onExit={handleExitRequest}
+              onExitConfirm={handleExitConfirm}
+              onExitCancel={handleExitCancel}
+              showExitConfirm={showExitConfirm}
               sessionId={sessionId}
               isLoading={isLoading}
               currentDifficulty={currentDifficulty}
@@ -1291,6 +1478,9 @@ export function VRTestPage() {
               courses={courses}
               selectedCourseId={selectedCourseId}
               onSelectCourse={setSelectedCourseId}
+              maxQuestions={maxQuestions}
+              hasCourseParam={hasCourseParam}
+              quizType={activeQuizType}
             />
           )}
 

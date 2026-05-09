@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using VRCourses.API.Models.DTOs;
@@ -8,7 +8,7 @@ namespace VRCourses.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize] // Требует JWT токен
+[Authorize]
 public class QuizController : ControllerBase
 {
     private readonly IQuizService _quizService;
@@ -18,13 +18,16 @@ public class QuizController : ControllerBase
         _quizService = quizService;
     }
 
-    // POST /api/quiz/start
+    // POST /api/quiz/start?courseId=1[&moduleId=2&quizType=mini]
     [HttpPost("start")]
-    public async Task<IActionResult> StartSession([FromQuery] int courseId)
+    public async Task<IActionResult> StartSession(
+        [FromQuery] int courseId,
+        [FromQuery] int? moduleId = null,
+        [FromQuery] string? quizType = null)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var sessionId = await _quizService.StartQuizSessionAsync(userId, courseId);
-        return Ok(new { sessionId });
+        var result = await _quizService.StartQuizSessionAsync(userId, courseId, moduleId, quizType);
+        return Ok(result);
     }
 
     // GET /api/quiz/next-question?sessionId=1
@@ -49,7 +52,6 @@ public class QuizController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Вернет понятную ошибку на фронт (400 Bad Request)
             return BadRequest(new { message = ex.Message });
         }
     }
@@ -60,5 +62,13 @@ public class QuizController : ControllerBase
     {
         var stats = await _quizService.GetSessionStatsAsync(sessionId);
         return Ok(stats);
+    }
+
+    // POST /api/quiz/end?sessionId=1  — close session, save partial progress
+    [HttpPost("end")]
+    public async Task<IActionResult> EndSession([FromQuery] int sessionId)
+    {
+        await _quizService.EndSessionAsync(sessionId);
+        return Ok(new { message = "Session ended" });
     }
 }

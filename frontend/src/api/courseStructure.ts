@@ -8,6 +8,18 @@ import type {
   SubmitMiniQuizAnswer,
 } from '@/types';
 
+interface VrMiniQuizPayload {
+  moduleId: number;
+  courseId: number;
+  passed: boolean;
+  score: number;
+}
+
+interface VrMiniQuizResponse {
+  passed: boolean;
+  nextModuleUnlocked: boolean;
+}
+
 export const courseStructureApi = {
   getCourseStructure: async (courseId: number): Promise<CourseStructure> => {
     const response = await apiClient.get<CourseStructure>(`/courses/${courseId}/modules`);
@@ -43,6 +55,11 @@ export const courseStructureApi = {
 
   getCourseProgress: async (courseId: number): Promise<CourseProgress> => {
     const response = await apiClient.get<CourseProgress>(`/progress/${courseId}`);
+    return response.data;
+  },
+
+  recordVrMiniQuiz: async (payload: VrMiniQuizPayload): Promise<VrMiniQuizResponse> => {
+    const response = await apiClient.post<VrMiniQuizResponse>('/progress/miniquiz/vr', payload);
     return response.data;
   },
 };

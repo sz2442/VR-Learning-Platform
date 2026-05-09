@@ -36,6 +36,15 @@ public class ProgressController : ControllerBase
         return Ok(result);
     }
 
+    // POST /api/progress/miniquiz/vr  — record VR quiz result without re-evaluating answers
+    [HttpPost("miniquiz/vr")]
+    public async Task<IActionResult> RecordVrMiniQuiz([FromBody] RecordVrMiniQuizDto dto)
+    {
+        int userId = GetUserId();
+        var result = await _progressService.RecordVrMiniQuizAsync(userId, dto);
+        return Ok(result);
+    }
+
     // GET /api/progress/{courseId}
     [HttpGet("{courseId}")]
     public async Task<IActionResult> GetCourseProgress(int courseId)

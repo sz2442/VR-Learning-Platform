@@ -1,5 +1,12 @@
 ﻿namespace VRCourses.API.Models.DTOs;
 
+public class StartSessionResultDto
+{
+    public int SessionId { get; set; }
+    public string? QuizType { get; set; }   // "mini" | "final" | null
+    public int MaxQuestions { get; set; }   // 8 mini / 20 final / 10 legacy
+}
+
 public class QuestionDto
 {
     public int QuestionId { get; set; }

@@ -121,6 +121,48 @@ public class ProgressService : IProgressService
         return new MiniQuizResultDto(passed, score, passingScore, correct, total, nextUnlocked);
     }
 
+    public async Task<RecordVrMiniQuizResultDto> RecordVrMiniQuizAsync(int userId, RecordVrMiniQuizDto dto)
+    {
+        if (dto.Passed)
+        {
+            var existing = await _context.StudentProgress.FirstOrDefaultAsync(sp =>
+                sp.UserId == userId &&
+                sp.CourseId == dto.CourseId &&
+                sp.ModuleId == dto.ModuleId &&
+                sp.ProgressType == "miniquiz");
+
+            if (existing == null)
+            {
+                _context.StudentProgress.Add(new StudentProgress
+                {
+                    UserId       = userId,
+                    CourseId     = dto.CourseId,
+                    ModuleId     = dto.ModuleId,
+                    ProgressType = "miniquiz",
+                    IsCompleted  = true,
+                    CompletedAt  = DateTime.UtcNow,
+                });
+                await _context.SaveChangesAsync();
+            }
+            else if (!existing.IsCompleted)
+            {
+                existing.IsCompleted = true;
+                existing.CompletedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        var modules = await _context.Modules
+            .Where(m => m.CourseId == dto.CourseId)
+            .OrderBy(m => m.OrderIndex)
+            .ToListAsync();
+
+        int idx          = modules.FindIndex(m => m.Id == dto.ModuleId);
+        bool nextUnlocked = dto.Passed && idx >= 0 && idx < modules.Count - 1;
+
+        return new RecordVrMiniQuizResultDto(dto.Passed, nextUnlocked);
+    }
+
     public async Task<CourseProgressDto?> GetCourseProgressAsync(int userId, int courseId)
     {
         var course = await _context.Courses.FindAsync(courseId);
