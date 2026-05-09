@@ -62,7 +62,6 @@ def train_model(
     logger.info(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
     
     # Initialize model with tuned hyperparameters
-    # Based on Hassan et al. (2024) approach
     model = RandomForestClassifier(
         n_estimators=100,
         max_depth=15,

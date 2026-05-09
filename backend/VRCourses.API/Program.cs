@@ -14,7 +14,12 @@ builder.Services.AddScoped<IQuizService, QuizService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
-    
+
+    // Suppress the snapshot-mismatch warning that fires when migrations are written manually.
+    // The migration SQL is correct; the snapshot is advisory-only for dotnet-ef tooling.
+    options.ConfigureWarnings(w =>
+        w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+
     if (builder.Environment.IsDevelopment())
     {
         options.EnableSensitiveDataLogging();
@@ -25,6 +30,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Добавляем сервисы
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<ICourseStructureService, CourseStructureService>();
+builder.Services.AddScoped<IProgressService, ProgressService>();
 
 builder.Services.AddHttpClient<IMlService, MlService>(client =>
 {

@@ -89,3 +89,98 @@ export interface ApiError {
   message: string;
   status?: number;
 }
+
+// Course structure types
+export interface LessonSummary {
+  id: number;
+  title: string;
+  orderIndex: number;
+  isCompleted: boolean;
+}
+
+export interface LessonContent {
+  id: number;
+  moduleId: number;
+  title: string;
+  contentText: string;
+  videoUrl: string | null;
+  orderIndex: number;
+}
+
+export interface MiniQuizSummary {
+  id: number;
+  passingScore: number;
+  isRequired: boolean;
+  isPassed: boolean;
+}
+
+export interface CourseModule {
+  id: number;
+  title: string;
+  description: string;
+  orderIndex: number;
+  isLocked: boolean;
+  lessons: LessonSummary[];
+  miniQuiz: MiniQuizSummary | null;
+}
+
+export interface CourseStructure {
+  courseId: number;
+  title: string;
+  modules: CourseModule[];
+  hasFinalQuiz: boolean;
+  finalQuizUnlocked: boolean;
+  totalLessons: number;
+  completedLessons: number;
+}
+
+export interface MiniQuizAnswer {
+  answerId: number;
+  text: string;
+}
+
+export interface MiniQuizQuestion {
+  questionId: number;
+  text: string;
+  difficultyLevel: number;
+  questionType: 'mcq' | 'dragdrop';
+  dragDropData?: DragDropData;
+  answers: MiniQuizAnswer[];
+}
+
+export interface SubmitMiniQuizAnswer {
+  questionId: number;
+  selectedAnswerId?: number;
+  dragDropIsCorrect?: boolean;
+}
+
+export interface MiniQuizResult {
+  passed: boolean;
+  score: number;
+  passingScore: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  nextModuleUnlocked: boolean;
+}
+
+// Progress types
+export interface LessonProgress {
+  lessonId: number;
+  isCompleted: boolean;
+  completedAt: string | null;
+}
+
+export interface ModuleProgress {
+  moduleId: number;
+  isLocked: boolean;
+  miniQuizPassed: boolean;
+  lessons: LessonProgress[];
+}
+
+export interface CourseProgress {
+  courseId: number;
+  totalLessons: number;
+  completedLessons: number;
+  finalQuizUnlocked: boolean;
+  modules: ModuleProgress[];
+}
