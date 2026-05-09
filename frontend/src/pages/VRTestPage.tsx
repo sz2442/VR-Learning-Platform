@@ -10,6 +10,8 @@ import { coursesApi } from '@/api/courses';
 import type { Question, SubmitAnswerResult, SessionStats, Course, VrQuizResult } from '@/types';
 import { generateShapeTask, validateDragDrop } from '@/utils/TaskGenerator';
 import type { DragDropTask, ShapeItem, DropZone } from '@/utils/TaskGenerator';
+import { useQuizSocket } from '@/hooks/useQuizSocket';
+import type { DifficultyUpdatedEvent } from '@/hooks/useQuizSocket';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -179,6 +181,25 @@ function KeyboardLocomotion() {
 
     camera.position.addScaledVector(move, speed * delta);
     camera.position.y = Math.max(0.5, Math.min(camera.position.y, 3.0));
+  });
+
+  return null;
+}
+
+function XRThumbstickDebugToggle({ onToggle }: { onToggle: () => void }) {
+  const leftController  = useController('left');
+  const rightController = useController('right');
+  const bothPressedRef  = useRef(false);
+
+  useFrame(() => {
+    const leftButtons  = leftController?.inputSource?.gamepad?.buttons;
+    const rightButtons = rightController?.inputSource?.gamepad?.buttons;
+    // Thumbstick click is typically button index 3
+    const leftPressed  = leftButtons?.[3]?.pressed ?? false;
+    const rightPressed = rightButtons?.[3]?.pressed ?? false;
+    const bothNow = leftPressed && rightPressed;
+    if (bothNow && !bothPressedRef.current) onToggle();
+    bothPressedRef.current = bothNow;
   });
 
   return null;
@@ -1101,6 +1122,130 @@ function PerformancePanel({ stats }: { stats: QuizStats }) {
   );
 }
 
+// ─── DebugPanel ───────────────────────────────────────────────────────────────
+
+interface DebugPanelProps {
+  sessionId: number | null;
+  currentDifficulty: number;
+  stats: QuizStats;
+  maxQuestions: number;
+  signalRStatus: string;
+  lastDifficultyEvent: DifficultyUpdatedEvent | null;
+  recentAttempts: Array<{ questionNum: number; isCorrect: boolean; timeSpent: number; difficulty: number }>;
+}
+
+function DebugPanel({
+  sessionId, currentDifficulty, stats, maxQuestions,
+  signalRStatus, lastDifficultyEvent, recentAttempts,
+}: DebugPanelProps) {
+  const statusColor = signalRStatus === 'Connected' ? '#22c55e'
+    : signalRStatus === 'Reconnecting' ? '#f59e0b'
+    : '#ef4444';
+
+  const sourceLabel = lastDifficultyEvent
+    ? (lastDifficultyEvent.source === 'ml_model' ? 'ML Model' : 'Rule-based Fallback')
+    : '—';
+
+  const confidencePct = lastDifficultyEvent
+    ? `${Math.round(lastDifficultyEvent.confidence * 100)}%`
+    : '—';
+
+  const ts = lastDifficultyEvent
+    ? new Date(lastDifficultyEvent.timestamp).toLocaleTimeString()
+    : '—';
+
+  const checkpointInterval = 10;
+  const attemptsInBlock = stats.total % checkpointInterval;
+  const untilNext = attemptsInBlock === 0 && stats.total > 0 ? 0 : checkpointInterval - attemptsInBlock;
+
+  return (
+    <group position={[1.8, 1.6, -1.5]} rotation={[0, -0.4, 0]}>
+      <PanelBg width={0.72} height={1.1} />
+
+      {/* Title */}
+      <Text position={[0, 0.48, 0.01]} fontSize={0.034} color="#f59e0b" anchorX="center" fontWeight="bold">
+        ML Debug Panel
+      </Text>
+      <Text position={[0, 0.42, 0.01]} fontSize={0.020} color="#475569" anchorX="center">
+        Press F9 to hide
+      </Text>
+
+      {/* SignalR status */}
+      <Text position={[-0.32, 0.34, 0.01]} fontSize={0.022} color="#64748b" anchorX="left">SignalR:</Text>
+      <Text position={[0.32, 0.34, 0.01]} fontSize={0.022} color={statusColor} anchorX="right">{signalRStatus}</Text>
+
+      {/* Session */}
+      <Text position={[-0.32, 0.27, 0.01]} fontSize={0.022} color="#64748b" anchorX="left">Session:</Text>
+      <Text position={[0.32, 0.27, 0.01]} fontSize={0.022} color="#e2e8f0" anchorX="right">{sessionId ?? '—'}</Text>
+
+      {/* Current difficulty */}
+      <Text position={[-0.32, 0.20, 0.01]} fontSize={0.022} color="#64748b" anchorX="left">Difficulty:</Text>
+      <Text position={[0.32, 0.20, 0.01]} fontSize={0.022} color="#00e5c8" anchorX="right">{currentDifficulty}/10</Text>
+
+      {/* Divider */}
+      <mesh position={[0, 0.155, 0.005]}>
+        <planeGeometry args={[0.64, 0.002]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+
+      {/* Last prediction */}
+      <Text position={[0, 0.12, 0.01]} fontSize={0.024} color="#a78bfa" anchorX="center">Last Prediction</Text>
+      <Text position={[-0.32, 0.06, 0.01]} fontSize={0.020} color="#64748b" anchorX="left">Source:</Text>
+      <Text position={[0.32, 0.06, 0.01]} fontSize={0.020} color="#e2e8f0" anchorX="right" maxWidth={0.42}>{sourceLabel}</Text>
+      <Text position={[-0.32, 0.00, 0.01]} fontSize={0.020} color="#64748b" anchorX="left">Confidence:</Text>
+      <Text position={[0.32, 0.00, 0.01]} fontSize={0.020} color="#e2e8f0" anchorX="right">{confidencePct}</Text>
+      <Text position={[-0.32, -0.06, 0.01]} fontSize={0.020} color="#64748b" anchorX="left">Predicted:</Text>
+      <Text position={[0.32, -0.06, 0.01]} fontSize={0.020} color="#00e5c8" anchorX="right">
+        {lastDifficultyEvent ? `${lastDifficultyEvent.newDifficulty}/10` : '—'}
+      </Text>
+      <Text position={[-0.32, -0.12, 0.01]} fontSize={0.018} color="#64748b" anchorX="left">At:</Text>
+      <Text position={[0.32, -0.12, 0.01]} fontSize={0.018} color="#475569" anchorX="right">{ts}</Text>
+
+      {/* Divider */}
+      <mesh position={[0, -0.165, 0.005]}>
+        <planeGeometry args={[0.64, 0.002]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+
+      {/* Checkpoint progress */}
+      <Text position={[0, -0.20, 0.01]} fontSize={0.020} color="#94a3b8" anchorX="center">
+        {`${attemptsInBlock}/${checkpointInterval} until next prediction`}
+      </Text>
+      <Text position={[0, -0.26, 0.01]} fontSize={0.018} color="#475569" anchorX="center">
+        {`Total: ${stats.total} / ${maxQuestions} questions`}
+      </Text>
+
+      {/* Divider */}
+      <mesh position={[0, -0.305, 0.005]}>
+        <planeGeometry args={[0.64, 0.002]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+
+      {/* Last 5 attempts */}
+      <Text position={[0, -0.34, 0.01]} fontSize={0.022} color="#a78bfa" anchorX="center">Last 5 Attempts</Text>
+      {recentAttempts.slice(-5).reverse().map((a, i) => (
+        <group key={i} position={[0, -0.39 - i * 0.062, 0.01]}>
+          <Text position={[-0.32, 0, 0]} fontSize={0.018} color="#64748b" anchorX="left">
+            {`Q${a.questionNum}`}
+          </Text>
+          <Text position={[-0.10, 0, 0]} fontSize={0.018} color={a.isCorrect ? '#22c55e' : '#ef4444'} anchorX="center">
+            {a.isCorrect ? '✓' : '✗'}
+          </Text>
+          <Text position={[0.10, 0, 0]} fontSize={0.018} color="#94a3b8" anchorX="center">
+            {`${a.timeSpent}s`}
+          </Text>
+          <Text position={[0.32, 0, 0]} fontSize={0.018} color="#00e5c8" anchorX="right">
+            {`D${a.difficulty}`}
+          </Text>
+        </group>
+      ))}
+      {recentAttempts.length === 0 && (
+        <Text position={[0, -0.41, 0.01]} fontSize={0.018} color="#475569" anchorX="center">No attempts yet</Text>
+      )}
+    </group>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const btnTeal: React.CSSProperties = {
@@ -1145,6 +1290,20 @@ export function VRTestPage() {
   const [maxQuestions, setMaxQuestions]     = useState(DEFAULT_MAX_QUESTIONS);
   const [activeQuizType, setActiveQuizType] = useState<string | null>(urlQuizType);
 
+  // Debug panel state
+  const [showDebug, setShowDebug]           = useState(false);
+  const [attemptLog, setAttemptLog]         = useState<
+    Array<{ questionNum: number; isCorrect: boolean; timeSpent: number; difficulty: number }>
+  >([]);
+
+  // SignalR socket
+  const { signalRStatus, lastDifficultyEvent } = useQuizSocket(
+    sessionId,
+    (event) => {
+      setCurrentDifficulty(event.newDifficulty);
+    },
+  );
+
   // Exit-confirmation state
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
@@ -1153,7 +1312,7 @@ export function VRTestPage() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(urlCourseId);
 
   useEffect(() => {
-    if (hasCourseParam) return; // skip loading all courses when launched from a module
+    if (hasCourseParam) return;
     coursesApi.getAll()
       .then((list) => {
         setCourses(list);
@@ -1161,6 +1320,15 @@ export function VRTestPage() {
       })
       .catch(console.error);
   }, [hasCourseParam]);
+
+  // F9 toggles debug panel
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F9') setShowDebug((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // drag-drop state
   const [taskMode, setTaskMode]   = useState<'mcq' | 'dragdrop'>('mcq');
@@ -1259,6 +1427,12 @@ export function VRTestPage() {
       const newStreak  = result.isCorrect ? stats.streak + 1 : 0;
       setStats({ correct: newCorrect, total: newTotal, streak: newStreak });
       setCurrentDifficulty(result.newDifficulty);
+      setAttemptLog((prev) => [...prev, {
+        questionNum: newTotal,
+        isCorrect: result.isCorrect,
+        timeSpent: timeSpent,
+        difficulty: question.difficultyLevel,
+      }]);
 
       const newIndex = taskIndex + 1;
       setTaskIndex(newIndex);
@@ -1452,6 +1626,7 @@ export function VRTestPage() {
           <KeyboardLocomotion />
           <XRLocomotion />
           <XRSpawnPoint position={[0, 0, 3]} />
+          <XRThumbstickDebugToggle onToggle={() => setShowDebug((v) => !v)} />
           <Scene onLock={() => setIsLocked(true)} onUnlock={() => setIsLocked(false)} isXR={isXR} />
 
           {taskMode === 'dragdrop' && dragTask ? (
@@ -1486,6 +1661,17 @@ export function VRTestPage() {
 
           <AIAssistantPanel difficulty={currentDifficulty} />
           <PerformancePanel stats={stats} />
+          {showDebug && (
+            <DebugPanel
+              sessionId={sessionId}
+              currentDifficulty={currentDifficulty}
+              stats={stats}
+              maxQuestions={maxQuestions}
+              signalRStatus={signalRStatus}
+              lastDifficultyEvent={lastDifficultyEvent}
+              recentAttempts={attemptLog}
+            />
+          )}
         </XR>
       </Canvas>
     </div>

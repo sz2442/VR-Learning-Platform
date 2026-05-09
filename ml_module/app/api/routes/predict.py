@@ -4,6 +4,7 @@ Prediction API Routes.
 Handles difficulty prediction requests.
 """
 
+import json
 import logging
 from fastapi import APIRouter, HTTPException, status
 
@@ -49,15 +50,17 @@ async def predict_difficulty(request: PredictionRequest) -> PredictionResponse:
     Returns:
         PredictionResponse with predicted difficulty and confidence
     """
-    logger.info(
-        f"Prediction request: session={request.session_id}, "
-        f"current_diff={request.current_difficulty}, "
-        f"attempts={len(request.recent_attempts)}"
-    )
-    
+    logger.info(json.dumps({
+        "event": "route_predict_request",
+        "session_id": request.session_id,
+        "current_difficulty": request.current_difficulty,
+        "attempt_count": len(request.recent_attempts),
+        "skill_level": request.user_context.skill_level.value,
+    }))
+
     try:
         predictor = get_predictor()
-        
+
         # Convert attempts to dict format
         attempts_data = [
             {
@@ -68,7 +71,7 @@ async def predict_difficulty(request: PredictionRequest) -> PredictionResponse:
             }
             for a in request.recent_attempts
         ]
-        
+
         # Make prediction
         result = predictor.predict(
             session_id=request.session_id,
@@ -76,11 +79,18 @@ async def predict_difficulty(request: PredictionRequest) -> PredictionResponse:
             recent_attempts=attempts_data,
             skill_level=request.user_context.skill_level.value
         )
-        
-        # Build response
-        return PredictionResponse(
+
+        if result.source == "rule_based_fallback":
+            logger.info(json.dumps({
+                "event": "using_fallback",
+                "session_id": request.session_id,
+                "model_version": result.model_version,
+            }))
+
+        response = PredictionResponse(
             predicted_difficulty=result.predicted_difficulty,
             confidence=round(result.confidence, 3),
+            source=result.source,
             reasoning=ReasoningInfo(
                 top_features=[
                     FeatureImportance(
@@ -93,6 +103,16 @@ async def predict_difficulty(request: PredictionRequest) -> PredictionResponse:
             model_version=result.model_version,
             inference_time_ms=round(result.inference_time_ms, 2)
         )
+
+        logger.info(json.dumps({
+            "event": "route_predict_response",
+            "session_id": request.session_id,
+            "predicted_difficulty": response.predicted_difficulty,
+            "confidence": response.confidence,
+            "source": response.source,
+        }))
+
+        return response
         
     except ValueError as e:
         logger.warning(f"Invalid request: {e}")

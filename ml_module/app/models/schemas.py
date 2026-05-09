@@ -88,6 +88,7 @@ class PredictionResponse(BaseModel):
     """Response for difficulty prediction."""
     predicted_difficulty: int = Field(..., ge=1, le=10, description="Predicted optimal difficulty")
     confidence: float = Field(..., ge=0, le=1, description="Prediction confidence")
+    source: str = Field(default="ml_model", description="Prediction source: ml_model or rule_based_fallback")
     reasoning: ReasoningInfo = Field(default_factory=ReasoningInfo)
     model_version: str = Field(..., description="Model version used")
     inference_time_ms: float = Field(..., ge=0, description="Inference time in milliseconds")

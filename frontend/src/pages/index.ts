@@ -6,3 +6,4 @@ export { QuizPage } from './QuizPage';
 export { MyLearningPage } from './MyLearningPage';
 export { NotFoundPage } from './NotFoundPage';
 export { VRTestPage } from './VRTestPage';
+export { MlDebugPage } from './MlDebugPage';

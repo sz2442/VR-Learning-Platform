@@ -9,4 +9,5 @@ public interface IQuizService
     Task<SubmitAnswerResultDto> SubmitAnswerAsync(SubmitAnswerDto dto);
     Task<SessionStatsDto> GetSessionStatsAsync(int sessionId);
     Task EndSessionAsync(int sessionId);
+    Task<DebugSessionDto?> GetDebugSessionAsync(int sessionId);
 }

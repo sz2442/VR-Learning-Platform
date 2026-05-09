@@ -12,10 +12,12 @@ namespace VRCourses.API.Controllers;
 public class QuizController : ControllerBase
 {
     private readonly IQuizService _quizService;
+    private readonly IWebHostEnvironment _env;
 
-    public QuizController(IQuizService quizService)
+    public QuizController(IQuizService quizService, IWebHostEnvironment env)
     {
         _quizService = quizService;
+        _env = env;
     }
 
     // POST /api/quiz/start?courseId=1[&moduleId=2&quizType=mini]
@@ -70,5 +72,19 @@ public class QuizController : ControllerBase
     {
         await _quizService.EndSessionAsync(sessionId);
         return Ok(new { message = "Session ended" });
+    }
+
+    // GET /api/quiz/debug/{sessionId} — only available in Development
+    [HttpGet("debug/{sessionId:int}")]
+    public async Task<IActionResult> GetDebugSession(int sessionId)
+    {
+        if (!_env.IsDevelopment())
+            return NotFound();
+
+        var debug = await _quizService.GetDebugSessionAsync(sessionId);
+        if (debug == null)
+            return NotFound(new { message = "Session not found" });
+
+        return Ok(debug);
     }
 }

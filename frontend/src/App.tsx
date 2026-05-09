@@ -13,6 +13,7 @@ import {
   MyLearningPage,
   NotFoundPage,
   VRTestPage,
+  MlDebugPage,
 } from '@/pages';
 
 const queryClient = new QueryClient({
@@ -63,6 +64,11 @@ export default function App() {
             <Route element={<QuizLayout />}>
               <Route path="/quiz/:sessionId" element={<QuizPage />} />
             </Route>
+          </Route>
+
+          {/* Admin routes — protected, no layout */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/admin/ml-debug" element={<MlDebugPage />} />
           </Route>
 
           {/* 404 */}

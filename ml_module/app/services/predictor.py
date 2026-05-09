@@ -5,6 +5,7 @@ Orchestrates feature engineering and model inference for difficulty prediction.
 """
 
 import time
+import json
 import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
@@ -24,6 +25,7 @@ class PredictionResult:
     """Result of difficulty prediction."""
     predicted_difficulty: int
     confidence: float
+    source: str
     feature_importances: List[Dict[str, Any]]
     model_version: str
     inference_time_ms: float
@@ -72,7 +74,15 @@ class DifficultyPredictor:
             PredictionResult with prediction and metadata
         """
         start_time = time.time()
-        
+
+        logger.info(json.dumps({
+            "event": "prediction_request",
+            "session_id": session_id,
+            "current_difficulty": current_difficulty,
+            "attempt_count": len(recent_attempts),
+            "skill_level": skill_level,
+        }))
+
         # Convert attempts to records
         attempt_records = create_attempt_records(recent_attempts)
         
@@ -110,15 +120,19 @@ class DifficultyPredictor:
             # Calculate inference time
             inference_time = (time.time() - start_time) * 1000
             
-            logger.info(
-                f"Prediction for session {session_id}: "
-                f"difficulty={predicted_diff}, confidence={confidence:.2f}, "
-                f"time={inference_time:.1f}ms"
-            )
+            logger.info(json.dumps({
+                "event": "prediction_result",
+                "session_id": session_id,
+                "predicted_difficulty": predicted_diff,
+                "confidence": round(confidence, 3),
+                "source": "ml_model",
+                "inference_time_ms": round(inference_time, 1),
+            }))
 
             return PredictionResult(
                 predicted_difficulty=predicted_diff,
                 confidence=confidence,
+                source="ml_model",
                 feature_importances=importances,
                 model_version=self.model_manager.model_version,
                 inference_time_ms=inference_time,
@@ -143,8 +157,6 @@ class DifficultyPredictor:
 
         Uses simple heuristics based on recent accuracy.
         """
-        logger.info("Using rule-based fallback prediction")
-
         # Calculate recent accuracy
         if not attempts:
             predicted_diff = current_difficulty
@@ -166,9 +178,18 @@ class DifficultyPredictor:
 
         inference_time = (time.time() - start_time) * 1000
 
+        logger.info(json.dumps({
+            "event": "prediction_result",
+            "source": "rule_based_fallback",
+            "predicted_difficulty": predicted_diff,
+            "confidence": confidence,
+            "inference_time_ms": round(inference_time, 1),
+        }))
+
         return PredictionResult(
             predicted_difficulty=predicted_diff,
             confidence=confidence,
+            source="rule_based_fallback",
             feature_importances=[
                 {"feature": "recent_accuracy", "importance": 1.0}
             ],

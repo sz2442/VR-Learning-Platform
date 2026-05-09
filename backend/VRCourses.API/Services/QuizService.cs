@@ -1,6 +1,8 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using VRCourses.API.Data;
+using VRCourses.API.Hubs;
 using VRCourses.API.Models.DTOs;
 using VRCourses.API.Models.Entities;
 using VRCourses.API.Services.Interfaces;
@@ -11,16 +13,23 @@ public class QuizService : IQuizService
 {
     private readonly AppDbContext _context;
     private readonly IMlService _mlService;
+    private readonly IHubContext<QuizHub> _hubContext;
     private readonly ILogger<QuizService> _logger;
 
     private const int MaxQuestionsMini   = 8;
     private const int MaxQuestionsFinal  = 20;
     private const int MaxQuestionsLegacy = 10;
+    private const int CheckpointInterval = 10;
 
-    public QuizService(AppDbContext context, IMlService mlService, ILogger<QuizService> logger)
+    public QuizService(
+        AppDbContext context,
+        IMlService mlService,
+        IHubContext<QuizHub> hubContext,
+        ILogger<QuizService> logger)
     {
         _context = context;
         _mlService = mlService;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -51,7 +60,7 @@ public class QuizService : IQuizService
         };
 
         _logger.LogInformation(
-            "🎮 Started quiz session {SessionId} for user {UserId}, course {CourseId}, module {ModuleId}, type {QuizType}, maxQ {MaxQ}",
+            "{{\"event\":\"session_started\",\"session_id\":{SessionId},\"user_id\":{UserId},\"course_id\":{CourseId},\"module_id\":{ModuleId},\"quiz_type\":\"{QuizType}\",\"max_questions\":{MaxQ}}}",
             session.Id, userId, courseId, moduleId, quizType, maxQ);
 
         return new StartSessionResultDto
@@ -231,9 +240,26 @@ public class QuizService : IQuizService
         }
         else
         {
-            newDifficulty = await GetAdaptiveDifficultyAsync(session, question.DifficultyLevel);
+            var (difficulty, confidence, source) = await GetAdaptiveDifficultyAsync(session, question.DifficultyLevel);
+            newDifficulty = difficulty;
             session.CurrentDifficulty = newDifficulty;
             await _context.SaveChangesAsync();
+
+            // Broadcast DifficultyUpdated via SignalR to all clients in this session group
+            await _hubContext.Clients
+                .Group($"session_{session.Id}")
+                .SendAsync("DifficultyUpdated", new
+                {
+                    sessionId = session.Id,
+                    newDifficulty,
+                    confidence,
+                    source,
+                    timestamp = DateTime.UtcNow,
+                });
+
+            _logger.LogInformation(
+                "{{\"event\":\"difficulty_updated\",\"session_id\":{SessionId},\"new_difficulty\":{Difficulty},\"confidence\":{Confidence},\"source\":\"{Source}\"}}",
+                session.Id, newDifficulty, confidence, source);
         }
 
         return new SubmitAnswerResultDto
@@ -258,9 +284,10 @@ public class QuizService : IQuizService
         _logger.LogInformation("🚪 Session {SessionId} ended (possibly mid-quiz)", sessionId);
     }
 
-    // ── Adaptive difficulty helpers (unchanged) ───────────────────────────────
+    // ── Adaptive difficulty ───────────────────────────────────────────────────
 
-    private async Task<int> GetAdaptiveDifficultyAsync(QuizSession session, int lastQuestionDifficulty)
+    private async Task<(int difficulty, double confidence, string source)> GetAdaptiveDifficultyAsync(
+        QuizSession session, int lastQuestionDifficulty)
     {
         var recentAttempts = session.Attempts
             .OrderByDescending(a => a.Timestamp)
@@ -274,68 +301,66 @@ public class QuizService : IQuizService
 
         if (session.Attempts.Count <= 3)
         {
-            _logger.LogInformation("🔥 Warm-up period, keeping difficulty stable");
-            return session.CurrentDifficulty;
+            _logger.LogInformation(
+                "{{\"event\":\"adaptive_skip\",\"reason\":\"warmup\",\"session_id\":{SessionId}}}",
+                session.Id);
+            return (session.CurrentDifficulty, 0.5, "warmup");
         }
 
         if (recentAttempts.Count < 3)
         {
-            _logger.LogInformation("📊 Not enough data, using rule-based");
-            return AdjustDifficulty(session);
+            _logger.LogInformation(
+                "{{\"event\":\"adaptive_skip\",\"reason\":\"insufficient_data\",\"session_id\":{SessionId}}}",
+                session.Id);
+            var (d, s) = AdjustDifficulty(session);
+            return (d, 0.5, s);
         }
 
         try
         {
-            var mlPrediction = await _mlService.PredictDifficultyAsync(
+            var mlResult = await _mlService.PredictDifficultyAsync(
                 session.Id,
                 session.CurrentDifficulty,
                 recentAttempts,
                 "Intermediate");
 
-            if (mlPrediction.HasValue)
+            if (mlResult != null)
             {
-                var validated = ValidateDifficulty(mlPrediction.Value, session.CurrentDifficulty);
-                _logger.LogInformation("🤖 ML: {Raw} → Validated: {Final}", mlPrediction.Value, validated);
-                return validated;
+                var validated = ValidateDifficulty(mlResult.Difficulty, session.CurrentDifficulty);
+                _logger.LogInformation(
+                    "{{\"event\":\"ml_applied\",\"session_id\":{SessionId},\"raw\":{Raw},\"validated\":{Validated},\"confidence\":{Confidence},\"source\":\"{Source}\"}}",
+                    session.Id, mlResult.Difficulty, validated, mlResult.Confidence, mlResult.Source);
+                return (validated, mlResult.Confidence, mlResult.Source);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "⚠️ ML service error");
+            _logger.LogWarning(
+                "{{\"event\":\"ml_error\",\"session_id\":{SessionId},\"error\":\"{Error}\"}}",
+                session.Id, ex.Message);
         }
 
-        _logger.LogInformation("📊 Using rule-based adaptation");
-        return AdjustDifficulty(session);
+        _logger.LogInformation(
+            "{{\"event\":\"fallback_applied\",\"session_id\":{SessionId}}}",
+            session.Id);
+        var (fd, fs) = AdjustDifficulty(session);
+        return (fd, 0.5, fs);
     }
 
     private int ValidateDifficulty(int mlPrediction, int currentDifficulty)
     {
-        _logger.LogInformation("🔍 ML raw prediction: {ML}, current: {Current}", mlPrediction, currentDifficulty);
-
-        if (mlPrediction < 3)
-        {
-            _logger.LogWarning("⚠️ ML predicted {ML} < 3, clamping to 3", mlPrediction);
-            mlPrediction = 3;
-        }
+        if (mlPrediction < 3) mlPrediction = 3;
 
         const int maxChange = 2;
         if (mlPrediction > currentDifficulty + maxChange)
-        {
-            _logger.LogWarning("⚠️ ML jump too high: {ML} → {Clamped}", mlPrediction, currentDifficulty + maxChange);
             mlPrediction = currentDifficulty + maxChange;
-        }
         if (mlPrediction < currentDifficulty - maxChange)
-        {
-            _logger.LogWarning("⚠️ ML drop too low: {ML} → {Clamped}", mlPrediction, currentDifficulty - maxChange);
             mlPrediction = currentDifficulty - maxChange;
-        }
 
-        mlPrediction = Math.Clamp(mlPrediction, 1, 10);
-        _logger.LogInformation("✅ Validated difficulty: {Result}", mlPrediction);
-        return mlPrediction;
+        return Math.Clamp(mlPrediction, 1, 10);
     }
 
-    private int AdjustDifficulty(QuizSession session)
+    private (int difficulty, string source) AdjustDifficulty(QuizSession session)
     {
         var recentAttempts = session.Attempts
             .OrderByDescending(a => a.Timestamp)
@@ -343,12 +368,12 @@ public class QuizService : IQuizService
             .ToList();
 
         if (recentAttempts.Count < 3)
-            return session.CurrentDifficulty;
+            return (session.CurrentDifficulty, "rule_based_fallback");
 
         double accuracy = recentAttempts.Count(a => a.IsCorrect) / (double)recentAttempts.Count;
         double avgTime  = recentAttempts.Average(a => a.TimeSpentSeconds);
 
-        var newDifficulty = session.CurrentDifficulty;
+        int newDifficulty = session.CurrentDifficulty;
 
         if (accuracy >= 0.8 && avgTime < 30)
             newDifficulty = Math.Min(session.CurrentDifficulty + 1, 10);
@@ -359,10 +384,11 @@ public class QuizService : IQuizService
         else
             newDifficulty = Math.Max(session.CurrentDifficulty - 1, 3);
 
-        _logger.LogInformation("📊 Rule-based: acc={Accuracy:P0}, time={Time:F1}s → {Current} → {New}",
-            accuracy, avgTime, session.CurrentDifficulty, newDifficulty);
+        _logger.LogInformation(
+            "{{\"event\":\"rule_based_result\",\"session_id\":{SessionId},\"accuracy\":{Accuracy},\"avg_time\":{AvgTime},\"old_difficulty\":{Old},\"new_difficulty\":{New}}}",
+            session.Id, Math.Round(accuracy, 2), Math.Round(avgTime, 1), session.CurrentDifficulty, newDifficulty);
 
-        return newDifficulty;
+        return (newDifficulty, "rule_based_fallback");
     }
 
     public async Task<SessionStatsDto> GetSessionStatsAsync(int sessionId)
@@ -384,6 +410,58 @@ public class QuizService : IQuizService
             Accuracy         = total > 0 ? (double)correct / total * 100 : 0,
             CurrentDifficulty = session.CurrentDifficulty,
             FinalDifficulty  = session.CurrentDifficulty,
+        };
+    }
+
+    // ── Debug session info (dev only) ─────────────────────────────────────────
+
+    public async Task<DebugSessionDto?> GetDebugSessionAsync(int sessionId)
+    {
+        var session = await _context.QuizSessions
+            .Include(s => s.Attempts)
+                .ThenInclude(a => a.Question)
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+        if (session == null) return null;
+
+        int maxQ = session.QuizType switch
+        {
+            "mini"  => MaxQuestionsMini,
+            "final" => MaxQuestionsFinal,
+            _       => MaxQuestionsLegacy,
+        };
+
+        var attempts = session.Attempts
+            .OrderBy(a => a.Timestamp)
+            .Select((a, idx) => new DebugAttemptDto
+            {
+                AttemptNumber     = idx + 1,
+                QuestionId        = a.QuestionId,
+                IsCorrect         = a.IsCorrect,
+                TimeSpentSeconds  = a.TimeSpentSeconds,
+                DifficultyAtTime  = a.Question?.DifficultyLevel ?? session.CurrentDifficulty,
+                Timestamp         = a.Timestamp,
+            })
+            .ToList();
+
+        int nextCheckpoint = CheckpointInterval - (session.Attempts.Count % CheckpointInterval);
+        if (nextCheckpoint == CheckpointInterval) nextCheckpoint = 0;
+
+        return new DebugSessionDto
+        {
+            SessionId            = session.Id,
+            UserId               = session.UserId,
+            CourseId             = session.CourseId,
+            ModuleId             = session.ModuleId,
+            QuizType             = session.QuizType,
+            CurrentDifficulty    = session.CurrentDifficulty,
+            TotalAttempts        = session.Attempts.Count,
+            MaxQuestions         = maxQ,
+            AttemptsUntilNextCheckpoint = nextCheckpoint,
+            CheckpointInterval   = CheckpointInterval,
+            IsActive             = session.IsActive,
+            StartTime            = session.StartTime,
+            Attempts             = attempts,
         };
     }
 }
