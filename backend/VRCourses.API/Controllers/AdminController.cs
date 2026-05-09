@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using VRCourses.API.Services;
 
 namespace VRCourses.API.Controllers;
@@ -60,7 +62,8 @@ public class AdminController : ControllerBase
             if (!response.IsSuccessStatusCode)
                 return Ok(new { reachable = false, status = "unreachable", http_status = (int)response.StatusCode });
 
-            var body = await response.Content.ReadFromJsonAsync<MlHealthResponse>();
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var body = await response.Content.ReadFromJsonAsync<MlHealthResponse>(options);
             return Ok(new
             {
                 reachable = true,
@@ -114,9 +117,9 @@ public class AdminController : ControllerBase
     }
 
     private record MlHealthResponse(
-        string Status,
-        bool ModelLoaded,
-        string ModelVersion,
-        double UptimeSeconds
+        [property: JsonPropertyName("status")]        string Status,
+        [property: JsonPropertyName("model_loaded")]  bool ModelLoaded,
+        [property: JsonPropertyName("model_version")] string ModelVersion,
+        [property: JsonPropertyName("uptime_seconds")] double UptimeSeconds
     );
 }
