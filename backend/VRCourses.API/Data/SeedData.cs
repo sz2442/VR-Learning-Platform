@@ -1158,5 +1158,46 @@ xAPI statements flow to a Learning Record Store (LRS) like SCORM Cloud or a cust
         await context.SaveChangesAsync();
 
         Console.WriteLine($"✅ VR course seeded: 3 modules, 6 lessons, 3 mini quizzes (24 questions), 1 final quiz (25 questions)");
+
+        await SeedTestUsersAsync(context);
+    }
+
+    // ===== TEST USERS =====
+    // Credentials are printed to console on first seed so you can log in immediately.
+    private static async Task SeedTestUsersAsync(AppDbContext context)
+    {
+        var testUsers = new[]
+        {
+            new { Email = "student@test.com",    FirstName = "Alex",    LastName = "Student",    Role = "Student",    Password = "student123"    },
+            new { Email = "instructor@test.com", FirstName = "Maria",   LastName = "Instructor", Role = "Instructor", Password = "instructor123" },
+            new { Email = "admin@test.com",      FirstName = "Admin",   LastName = "User",       Role = "Admin",      Password = "admin123"      },
+        };
+
+        bool anyCreated = false;
+        foreach (var u in testUsers)
+        {
+            if (await context.Users.AnyAsync(x => x.Email == u.Email)) continue;
+
+            context.Users.Add(new User
+            {
+                Email      = u.Email,
+                FirstName  = u.FirstName,
+                LastName   = u.LastName,
+                Role       = u.Role,
+                SkillLevel = "Beginner",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(u.Password),
+                CreatedAt  = DateTime.UtcNow
+            });
+            anyCreated = true;
+        }
+
+        if (anyCreated)
+        {
+            await context.SaveChangesAsync();
+            Console.WriteLine("👤 Test users seeded:");
+            Console.WriteLine("   student@test.com    / student123    (Student)");
+            Console.WriteLine("   instructor@test.com / instructor123 (Instructor)");
+            Console.WriteLine("   admin@test.com      / admin123      (Admin)");
+        }
     }
 }

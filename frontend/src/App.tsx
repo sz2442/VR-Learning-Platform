@@ -14,6 +14,7 @@ import {
   NotFoundPage,
   VRTestPage,
   MlDebugPage,
+  DashboardPage,
 } from '@/pages';
 
 const queryClient = new QueryClient({
@@ -48,6 +49,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/my-learning" element={<MyLearningPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
             </Route>
           </Route>
 

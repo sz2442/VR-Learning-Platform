@@ -6,6 +6,7 @@ interface UserInfo {
   id: number;
   email: string;
   name: string;
+  role: string;
 }
 
 interface AuthState {
@@ -33,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
             id: parseInt(payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] as string),
             email: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] as string,
             name: payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] as string,
+            role: (payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] as string) ?? 'Student',
           };
           set({ token, user, isAuthenticated: true });
         }

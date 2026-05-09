@@ -195,3 +195,42 @@ export interface CourseProgress {
   finalQuizUnlocked: boolean;
   modules: ModuleProgress[];
 }
+
+// Dashboard types
+export interface StudentStats {
+  totalSessions: number;
+  totalQuestionsAnswered: number;
+  averageAccuracy: number;
+  totalTimeSpentMinutes: number;
+  currentStreak: number;
+  bestDifficultyReached: number;
+  favoriteCategory: string;
+  memberSince: string;
+}
+
+export interface CourseProgressSummary {
+  courseId: number;
+  courseTitle: string;
+  modulesCompleted: number;
+  modulesTotal: number;
+  completionPercentage: number;
+  bestDifficulty: number;
+  lastSessionDate: string | null;
+  averageAccuracy: number;
+}
+
+export interface ActivityEntry {
+  sessionId: number;
+  courseTitle: string;
+  date: string;
+  questionsAnswered: number;
+  accuracy: number;
+  finalDifficulty: number;
+  durationMinutes: number;
+}
+
+export interface AccuracyPoint {
+  sessionNumber: number;
+  accuracy: number;
+  difficulty: number;
+}

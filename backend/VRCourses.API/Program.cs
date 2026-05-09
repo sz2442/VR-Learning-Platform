@@ -33,6 +33,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<ICourseStructureService, CourseStructureService>();
 builder.Services.AddScoped<IProgressService, ProgressService>();
+builder.Services.AddScoped<IStudentService, StudentService>();
 
 // ML prediction in-memory store (singleton, lives for app lifetime)
 builder.Services.AddSingleton<MlPredictionStore>();

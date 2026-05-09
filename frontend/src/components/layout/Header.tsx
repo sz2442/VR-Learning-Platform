@@ -14,6 +14,7 @@ export function Header() {
   const navLinks = [
     { href: '/', label: 'Courses' },
     { href: '/my-learning', label: 'My Learning', auth: true },
+    { href: '/dashboard', label: 'Dashboard', auth: true, role: 'Student' },
   ];
 
   return (
@@ -33,8 +34,11 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-1 md:flex">
-            {navLinks.map((link) => (
-              (!link.auth || isAuthenticated) && (
+            {navLinks.map((link) => {
+              const authOk = !link.auth || isAuthenticated;
+              const roleOk = !link.role || user?.role === link.role;
+              if (!authOk || !roleOk) return null;
+              return (
                 <Link
                   key={link.href}
                   to={link.href}
@@ -42,8 +46,8 @@ export function Header() {
                 >
                   {link.label}
                 </Link>
-              )
-            ))}
+              );
+            })}
           </nav>
 
           {/* Right side */}
@@ -94,8 +98,11 @@ export function Header() {
           )}
         >
           <nav className="flex flex-col gap-1 pt-2">
-            {navLinks.map((link) => (
-              (!link.auth || isAuthenticated) && (
+            {navLinks.map((link) => {
+              const authOk = !link.auth || isAuthenticated;
+              const roleOk = !link.role || user?.role === link.role;
+              if (!authOk || !roleOk) return null;
+              return (
                 <Link
                   key={link.href}
                   to={link.href}
@@ -104,8 +111,8 @@ export function Header() {
                 >
                   {link.label}
                 </Link>
-              )
-            ))}
+              );
+            })}
             
             <div className="mt-2 border-t border-surface-200 pt-2 dark:border-surface-700">
               {isAuthenticated ? (
