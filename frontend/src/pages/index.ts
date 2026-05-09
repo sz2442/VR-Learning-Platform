@@ -9,3 +9,5 @@ export { VRTestPage } from './VRTestPage';
 export { MlDebugPage } from './MlDebugPage';
 export { DashboardPage } from './DashboardPage';
 export { InstructorPage } from './InstructorPage';
+export { AdminUsersPage } from './AdminUsersPage';
+export { AdminCoursesPage } from './AdminCoursesPage';

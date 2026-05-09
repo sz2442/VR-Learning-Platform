@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
 
 import { Layout, QuizLayout, ProtectedRoute, RoleRoute } from '@/components/layout';
+import { AdminLayout } from '@/components/admin';
 import {
   HomePage,
   LoginPage,
@@ -16,6 +17,8 @@ import {
   MlDebugPage,
   DashboardPage,
   InstructorPage,
+  AdminUsersPage,
+  AdminCoursesPage,
 } from '@/pages';
 
 const queryClient = new QueryClient({
@@ -76,9 +79,13 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* Admin routes — protected, no layout */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/admin/ml-debug" element={<MlDebugPage />} />
+          {/* Admin routes — role-guarded, AdminLayout */}
+          <Route element={<RoleRoute role="Admin" />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin/ml-debug" element={<MlDebugPage />} />
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/admin/courses" element={<AdminCoursesPage />} />
+            </Route>
           </Route>
 
           {/* 404 */}

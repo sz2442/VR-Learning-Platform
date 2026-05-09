@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@/api/admin';
 import type { PredictionLogEntry, MlStatusResponse } from '@/api/admin';
+import { PlatformStatsBar } from '@/components/admin';
 
 export function MlDebugPage() {
   const [predictions, setPredictions] = useState<PredictionLogEntry[]>([]);
@@ -46,11 +47,13 @@ export function MlDebugPage() {
     source === 'ml_model' ? '#22c55e' : '#f59e0b';
 
   return (
-    <div style={{ fontFamily: 'monospace', background: '#0a0c12', minHeight: '100vh', color: '#e2e8f0', padding: '24px' }}>
+    <div style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>
       <h1 style={{ color: '#00e5c8', marginBottom: 4 }}>ML Debug Dashboard</h1>
-      <p style={{ color: '#475569', marginBottom: 24, fontSize: 13 }}>
+      <p style={{ color: '#475569', marginBottom: 16, fontSize: 13 }}>
         Admin-only · Predictions stored in memory (last 100) · Resets on backend restart
       </p>
+
+      <PlatformStatsBar />
 
       {error && (
         <div style={{ background: '#7f1d1d', padding: '10px 16px', borderRadius: 6, marginBottom: 16 }}>

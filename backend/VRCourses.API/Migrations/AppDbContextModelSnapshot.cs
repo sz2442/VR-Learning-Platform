@@ -363,6 +363,9 @@ namespace VRCourses.API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");

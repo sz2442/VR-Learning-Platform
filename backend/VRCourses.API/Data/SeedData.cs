@@ -8,6 +8,24 @@ public static class SeedData
 {
     public static async Task SeedQuestionsAsync(AppDbContext context)
     {
+        // ===== ADMIN USER =====
+        if (!await context.Users.AnyAsync(u => u.Role == "Admin"))
+        {
+            Console.WriteLine("👤 Creating admin user...");
+            context.Users.Add(new User
+            {
+                Email = "admin@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                FirstName = "Admin",
+                LastName = "User",
+                Role = "Admin",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            });
+            await context.SaveChangesAsync();
+            Console.WriteLine("✅ Admin user created: admin@test.com / admin123");
+        }
+
         // ===== КУРС 1: Mathematics Fundamentals =====
         if (!await context.Courses.AnyAsync(c => c.Title == "Mathematics Fundamentals"))
         {

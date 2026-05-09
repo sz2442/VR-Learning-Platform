@@ -12,8 +12,9 @@ public class User
     public string SkillLevel { get; set; } = "Beginner";  // Beginner, Intermediate, Advanced
     public string Role { get; set; } = "Student";         // Student, Instructor, Admin
     
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
+
     // Navigation properties
     public List<QuizSession> QuizSessions { get; set; } = new();
 }

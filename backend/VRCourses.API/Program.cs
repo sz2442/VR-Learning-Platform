@@ -129,6 +129,12 @@ using (var scope = app.Services.CreateScope())
         ");
         Console.WriteLine("✅ QuizSessions schema columns verified");
 
+        // Idempotent guard for Users.IsActive (added in AddUserIsActive migration).
+        await context.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""IsActive"" boolean NOT NULL DEFAULT true;
+        ");
+        Console.WriteLine("✅ Users.IsActive column verified");
+
         Console.WriteLine("🌱 Seeding database...");
         await SeedData.SeedQuestionsAsync(context);
         Console.WriteLine("✅ Database seeded successfully");
