@@ -90,7 +90,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+        var corsOrigins = (Environment.GetEnvironmentVariable("CORS_ORIGINS") ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries);
+        var origins = new[] { "http://localhost:3000", "http://localhost:5173" }
+            .Concat(corsOrigins).ToArray();
+        policy.WithOrigins(origins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

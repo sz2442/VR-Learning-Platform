@@ -67,6 +67,7 @@ services:
       JwtSettings__Audience: VRCoursesClient
       JwtSettings__ExpiryMinutes: 1440
       MlService__BaseUrl: http://ml-service:8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
     ports:
       - "${BACKEND_PORT:-5272}:80"
     depends_on:

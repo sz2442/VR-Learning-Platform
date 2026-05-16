@@ -36,6 +36,7 @@ jobs:
             DB_NAME=vrcourses_db
             JWT_SECRET_KEY=${{ secrets.JWT_SECRET }}
             VITE_API_URL=http://${{ secrets.DO_HOST }}:5272/api
+            CORS_ORIGINS=http://${{ secrets.DO_HOST }}:3000
             ASPNETCORE_ENVIRONMENT=Production
             LOG_LEVEL=Warning
             BACKEND_PORT=5272
