@@ -63,7 +63,7 @@ jobs:
           }
 
           check "Frontend"   "http://${{ secrets.DO_HOST }}:3000"
-          check "Backend"    "http://${{ secrets.DO_HOST }}:5272/health"
+          check "Backend"    "http://${{ secrets.DO_HOST }}:5272/api/courses"
           check "ML service" "http://${{ secrets.DO_HOST }}:8000/health"
 
           echo ""
