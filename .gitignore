@@ -1,0 +1,37 @@
+# Environment variables - NEVER COMMIT
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+
+# Database backups
+*.sql
+backup.sql
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 3D models
+public/models/
+
+.claude
+
+# Dependencies will be installed in containers
+node_modules/
+.venv/
+venv/

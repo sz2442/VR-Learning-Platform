@@ -1,0 +1,13 @@
+export { HomePage } from './HomePage';
+export { LoginPage } from './LoginPage';
+export { RegisterPage } from './RegisterPage';
+export { CourseDetailPage } from './CourseDetailPage';
+export { QuizPage } from './QuizPage';
+export { MyLearningPage } from './MyLearningPage';
+export { NotFoundPage } from './NotFoundPage';
+export { VRTestPage } from './VRTestPage';
+export { MlDebugPage } from './MlDebugPage';
+export { DashboardPage } from './DashboardPage';
+export { InstructorPage } from './InstructorPage';
+export { AdminUsersPage } from './AdminUsersPage';
+export { AdminCoursesPage } from './AdminCoursesPage';

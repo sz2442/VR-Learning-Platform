@@ -1,0 +1,76 @@
+# VR Meta University - Docker Compose Configuration
+# Includes ML Service + PostgreSQL for development
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # ML Service
+  # ===========================================
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vr_courses_ml
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://vrcourses_user:vrcourses_password_2024@postgres:5432/vrcourses_db
+      - MODEL_PATH=./models/random_forest_v1.joblib
+      - LOG_LEVEL=INFO
+      - ML_SERVICE_HOST=0.0.0.0
+      - ML_SERVICE_PORT=8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - vr_courses_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ./models:/app/models:ro  # Mount models directory (read-only)
+      - ./logs:/app/logs         # Persist logs
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: vr_courses_db
+    environment:
+      POSTGRES_USER: vrcourses_user
+      POSTGRES_PASSWORD: vrcourses_password_2024
+      POSTGRES_DB: vrcourses_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vr_courses_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vrcourses_user -d vrcourses_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  vr_courses_network:
+    driver: bridge
+    name: vr_courses_network
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  postgres_data:
+    name: vr_courses_postgres_data

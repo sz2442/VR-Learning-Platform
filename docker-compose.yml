@@ -1,0 +1,103 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: vr_courses_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-vrcourses_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-vrcourses_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-vrcourses_user} -d ${DB_NAME:-vrcourses_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vr_network
+    restart: unless-stopped
+
+  # ML Service (Python FastAPI)
+  ml-service:
+    build:
+      context: ./ml_module
+      dockerfile: Dockerfile
+    container_name: vr_ml_service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-vrcourses_db}
+      DB_USER: ${DB_USER:-vrcourses_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      ML_SERVICE_HOST: 0.0.0.0
+      ML_SERVICE_PORT: 8000
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml_module/models:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - vr_network
+    restart: unless-stopped
+
+  # Backend API (ASP.NET Core)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vr_backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:80
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${DB_NAME:-vrcourses_db};Username=${DB_USER:-vrcourses_user};Password=${DB_PASSWORD}"
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY}
+      JwtSettings__Issuer: VRCoursesAPI
+      JwtSettings__Audience: VRCoursesClient
+      JwtSettings__ExpiryMinutes: 1440
+      MlService__BaseUrl: http://ml-service:8000
+    ports:
+      - "${BACKEND_PORT:-5272}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    networks:
+      - vr_network
+    restart: unless-stopped
+
+  # Frontend (React/Vite + Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5272/api}
+    container_name: vr_frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - vr_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  vr_network:
+    driver: bridge

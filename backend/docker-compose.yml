@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vr_courses_db
+    environment:
+      POSTGRES_USER: vrcourses_user
+      POSTGRES_PASSWORD: vrcourses_password_2024
+      POSTGRES_DB: vrcourses_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
