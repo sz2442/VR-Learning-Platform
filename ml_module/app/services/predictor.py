@@ -83,10 +83,7 @@ class DifficultyPredictor:
             "skill_level": skill_level,
         }))
 
-        # Convert attempts to records
         attempt_records = create_attempt_records(recent_attempts)
-        
-        # Extract features
         feature_vector = self.feature_engineer.extract_features(
             current_difficulty=current_difficulty,
             recent_attempts=attempt_records,
@@ -111,13 +108,8 @@ class DifficultyPredictor:
                 )
         
         try:
-            # Make prediction
             predicted_diff, confidence = self.model_manager.predict(feature_vector.features)
-            
-            # Get feature importances
             importances = self.model_manager.get_feature_importance(top_n=5)
-            
-            # Calculate inference time
             inference_time = (time.time() - start_time) * 1000
             
             logger.info(json.dumps({
@@ -157,7 +149,6 @@ class DifficultyPredictor:
 
         Uses simple heuristics based on recent accuracy.
         """
-        # Calculate recent accuracy
         if not attempts:
             predicted_diff = current_difficulty
             confidence = 0.5

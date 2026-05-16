@@ -74,13 +74,9 @@ export const useQuizStore = create<QuizState>((set, get) => ({
         });
     },
 
-    // 🔥 ФИКС: Умная синхронизация
     syncProgress: (serverAnsweredCount: number, currentDifficulty: number) => {
         const { answeredCount } = get();
 
-        // Обновляем состояние из сервера ТОЛЬКО если:
-        // 1. Это первая загрузка (answeredCount === 0)
-        // 2. ИЛИ Сервер знает о большем количестве ответов, чем мы (serverAnsweredCount > answeredCount)
         if (answeredCount === 0 || serverAnsweredCount > answeredCount) {
             set({ answeredCount: serverAnsweredCount, currentDifficulty });
         }

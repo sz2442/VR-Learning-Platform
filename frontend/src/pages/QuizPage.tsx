@@ -32,21 +32,16 @@ export function QuizPage() {
         isValidSession ? sessionId : null
     );
 
-    // 🔥 ФИКС: Синхронизация и принудительное завершение
     useEffect(() => {
         if (stats) {
-            // Синхронизируем стор (с защитой от отката)
             syncProgress(stats.totalQuestions, stats.finalDifficulty);
-
-            // Если по статистике мы уже ответили на 10 вопросов - ПОКАЗАТЬ РЕЗУЛЬТАТ
-            // Это решит проблему со скриншота, где totalQuestions: 10, но висит вопрос
             if (stats.totalQuestions >= MAX_QUESTIONS) {
                 setShowResults(true);
             }
         }
     }, [stats, syncProgress]);
 
-    // Не грузим вопрос, если уже показываем результаты или достигли лимита
+    // skip fetching once results are shown or limit is reached
     const shouldFetchQuestion = !showResults && isValidSession && answeredCount < MAX_QUESTIONS;
 
     const { data: question, isLoading: isLoadingQuestion, refetch } = useNextQuestion(
@@ -56,16 +51,13 @@ export function QuizPage() {
     const { mutate: submitAnswer, isPending: isSubmitting } = useSubmitAnswer();
     const { mutate: startQuiz } = useStartQuiz();
 
-    // Если бэкенд вернул null (вопросы кончились), а статистика показывает, что мы начали квиз
     useEffect(() => {
         if (shouldFetchQuestion && !isLoadingQuestion && !question && stats && stats.totalQuestions > 0) {
-            console.log('🏁 No more questions available -> Finishing');
             setShowResults(true);
             refetchStats();
         }
     }, [question, isLoadingQuestion, shouldFetchQuestion, stats, refetchStats]);
 
-    // Мониторинг локального счетчика
     useEffect(() => {
         if (answeredCount >= MAX_QUESTIONS) {
             setShowResults(true);
@@ -90,14 +82,13 @@ export function QuizPage() {
                 setTimeout(() => {
                     setLastResult(null);
 
-                    // Проверяем состояние СРАЗУ после ответа
                     const currentCount = useQuizStore.getState().answeredCount;
 
                     if (currentCount >= MAX_QUESTIONS) {
                         setShowResults(true);
                         refetchStats();
                     } else {
-                        refetch(); // Грузим следующий
+                        refetch();
                     }
                 }, 1000);
             },

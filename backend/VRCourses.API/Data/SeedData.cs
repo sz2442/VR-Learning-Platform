@@ -1,4 +1,3 @@
-// file: VRCourses.API/Data/SeedData.cs
 using Microsoft.EntityFrameworkCore;
 using VRCourses.API.Models.Entities;
 

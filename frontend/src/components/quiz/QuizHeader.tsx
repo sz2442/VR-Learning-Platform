@@ -11,9 +11,7 @@ interface QuizHeaderProps {
 export function QuizHeader({ totalQuestions = 10, onExit }: QuizHeaderProps) {
     const { currentDifficulty, answeredCount } = useQuizStore();
 
-    // 🔥 ФИКС: Ограничиваем число, чтобы не показывать 11/10
     const displayCount = Math.min(answeredCount + 1, totalQuestions);
-    // Прогресс бар тоже не должен улетать за 100%
     const progressValue = Math.min(answeredCount, totalQuestions);
 
     return (
