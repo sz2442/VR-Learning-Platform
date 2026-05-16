@@ -102,7 +102,7 @@ function Scene({ onLock, onUnlock, isXR }: SceneProps) {
       <pointLight color="#ffffff" intensity={0.4} position={[1.5, 1.4, -1]} />
       <Environment preset="city" background={false} />
       <RotatingBox />
-      <GLBModel url="/models/Room.glb" position={[0, -1.25, 0]} scale={[1.5, 1.5, 1.5]} />
+      <GLBModel url="/models/Room.glb" position={[2, -1.75, 0]} scale={[1.5, 1.5, 1.5]} />
       {!isXR && <PointerLockControls onLock={onLock} onUnlock={onUnlock} />}
     </>
   );
@@ -237,8 +237,8 @@ function XRLocomotion() {
     const hasKbd = forward || back || left || right || up || down;
 
     const axes = leftController?.inputSource?.gamepad?.axes;
-    const hasCtrl = axes != null && axes.length >= 2 &&
-      (Math.abs(axes[0] ?? 0) > 0.25 || Math.abs(axes[1] ?? 0) > 0.25);
+    const hasCtrl = axes != null && axes.length >= 4 &&
+      (Math.abs(axes[2] ?? 0) > 0.25 || Math.abs(axes[3] ?? 0) > 0.25);
 
     if (!hasKbd && !hasCtrl) return;
 
@@ -258,8 +258,8 @@ function XRLocomotion() {
       if (up)   move.y += 1;
       if (down) move.y -= 1;
     } else if (hasCtrl && axes) {
-      const ax = axes[0] ?? 0;
-      const ay = axes[1] ?? 0;
+      const ax = axes[2] ?? 0;
+      const ay = axes[3] ?? 0;
       move.addScaledVector(dir.current, -ay);
       move.addScaledVector(rgt.current,  ax);
       if (move.lengthSq() === 0) return;

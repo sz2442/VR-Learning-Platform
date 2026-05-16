@@ -29,6 +29,11 @@
     "three": "^0.169.0",
     "zustand": "^5.0.0"
   },
+  "overrides": {
+    "stats-gl": {
+      "three": "$three"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
     "@types/react": "^18.3.11",

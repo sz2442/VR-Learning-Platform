@@ -1,128 +1,226 @@
+# VR Meta University
 
------
+A modern educational platform that bridges immersive VR learning with web-based adaptive assessments. Students engage with course content via VR applications and validate their knowledge through an intelligent web interface that adapts to their learning pace in real-time.
 
-# 🎓 VR Meta University
+---
 
-**VR Meta University** is a modern educational platform that bridges the gap between immersive VR learning and web-based adaptive assessments. Students engage with immersive course content via VR applications and validate their knowledge through an intelligent web interface that adapts to their learning pace in real-time.
+## Tech Stack
 
-## 🛠 Tech Stack
+### Backend
+- **Framework:** ASP.NET Core 9 (Web API)
+- **Database:** PostgreSQL 16
+- **ORM:** Entity Framework Core
+- **Authentication:** JWT Bearer + BCrypt
+- **Docs:** Swagger / OpenAPI 3.0
 
-### **Backend**
+### Frontend
+- **Core:** React 18 + Vite + TypeScript
+- **State:** Zustand
+- **Data fetching:** TanStack Query
+- **Styling:** Tailwind CSS + Framer Motion
+- **Icons:** Lucide React
 
-* **Framework:** ASP.NET Core 8 (Web API)
-* **Database:** PostgreSQL (Containerized via Docker)
-* **ORM:** Entity Framework Core
-* **Authentication:** JWT Bearer tokens with BCrypt password hashing
-* **API Documentation:** Swagger / OpenAPI 3.0
+### ML Service
+- **Framework:** FastAPI (Python)
+- **Models:** Scikit-learn
+- **Config:** Pydantic Settings
 
-### **Frontend**
+### Infrastructure
+- **Containerization:** Docker + Docker Compose (all 4 services)
+- **CI/CD:** GitHub Actions (deploy on push to `main`)
 
-* **Core:** React 18 + Vite + TypeScript
-* **State Management:** Zustand (Stores for Auth, Quiz, and UI)
-* **Data Fetching:** TanStack Query (React Query)
-* **Styling:** Tailwind CSS + Framer Motion for smooth animations
-* **Icons:** Lucide React
+---
 
-## 🚀 Key Features
+## Key Features
 
-* **Adaptive Testing Engine:** A rule-based difficulty adjustment system (Levels 1–10) that recalibrates based on student accuracy and response time.
-* **Automated Data Seeding:** Instant database initialization with Mathematics and Science course demo data upon startup.
-* **Modern UI/UX:** Fully responsive design with **Dark Mode** support and system preference detection.
-* **Session Management:** Real-time tracking of quiz attempts, time spent, and performance analytics.
-* **Secure Access:** Role-based access control and protected frontend routes.
+- **Adaptive Testing Engine** — ML-powered difficulty adjustment (levels 1–10) recalibrated in real-time based on accuracy and response time
+- **Admin Dashboard** — platform-wide analytics and user management
+- **Instructor Dashboard** — class-wide progress tracking and course analytics
+- **Student Dashboard** — personal performance stats and session history
+- **Automated Seeding** — Mathematics and Science demo data initialized on startup
+- **Dark Mode** — system preference detection with manual toggle
+- **Secure Access** — role-based access control (Student / Instructor / Admin) with protected routes
 
-## 🏁 Getting Started
+---
+
+## Getting Started (Local)
 
 ### Prerequisites
+- .NET 9 SDK
+- Node.js 18+
+- Docker Desktop
+- Python 3.11+ _(only if running ML service outside Docker)_
 
-* [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-* [Node.js 18+](https://nodejs.org/)
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-
-### 1\. Database Setup (Docker)
-
-The project uses PostgreSQL 16. Run the database container using the provided Compose file:
+### 1. Start all services
 
 ```bash
-# From the project root
-docker compose up -d
+# From the project root — starts PostgreSQL, ML service, backend, and frontend
+docker compose up -d --build
 ```
 
-### 2\. Backend Initialization
+| Service    | URL                           |
+|------------|-------------------------------|
+| Frontend   | http://localhost:3000         |
+| Backend    | http://localhost:5272         |
+| Swagger    | http://localhost:5272/swagger |
+| ML Service | http://localhost:8000         |
+| ML Docs    | http://localhost:8000/docs    |
 
-1.  Navigate to the API directory:
-    ```bash
-    cd backend/VRCourses.API
-    ```
-2.  The application is configured to run migrations and seed data automatically on startup. Simply run:
-    ```bash
-    dotnet run
-    ```
-    * **API Base URL:** `http://localhost:5272`
-    * **Swagger UI:** `http://localhost:5272/swagger`
+### 2. Run services individually (dev mode)
 
-### 3\. Frontend Initialization
+**Backend:**
+```bash
+cd backend/VRCourses.API
+dotnet run
+```
 
-1.  Navigate to the frontend directory:
-    ```bash
-    cd frontend
-    ```
-2.  Install dependencies and start the development server:
-    ```bash
-    npm install
-    npm run dev
-    ```
-    * **App URL:** `http://localhost:5173`
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev   # http://localhost:5173
+```
 
-## 📡 API Endpoints (Core)
+**ML Service:**
+```bash
+cd ml_module
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
 
+---
+
+## API Endpoints
+
+### Auth
 | Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | Authenticate user & return JWT |
-| `GET` | `/api/courses` | List all published courses |
-| `POST` | `/api/quiz/start` | Initialize a new adaptive quiz session |
-| `GET` | `/api/quiz/next-question` | Fetch next question based on current difficulty |
-| `POST` | `/api/quiz/submit-answer` | Submit answer & update session difficulty |
-| `GET` | `/api/quiz/stats` | Retrieve detailed session performance stats |
+|--------|----------|-------------|
+| `POST` | `/api/auth/register` | Register new user |
+| `POST` | `/api/auth/login` | Authenticate & return JWT |
 
-## 🏗 Project Structure
+### Courses & Content
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/courses` | List all courses |
+| `GET` | `/api/courses/{id}` | Course details |
+| `GET` | `/api/courses/{courseId}/modules` | Course structure with modules & lessons |
+| `GET` | `/api/lessons/{lessonId}` | Lesson content |
+| `GET` | `/api/modules/{moduleId}/miniquiz` | Mini-quiz questions for a module |
 
-```text
+### Progress
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/progress/lesson` | Mark lesson as complete |
+| `POST` | `/api/progress/miniquiz` | Submit mini-quiz answers |
+| `POST` | `/api/progress/miniquiz/vr` | Record VR quiz results |
+| `GET` | `/api/progress/{courseId}` | Student's course progress |
+
+### Quiz (Adaptive)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/quiz/start` | Initialize adaptive quiz session |
+| `GET` | `/api/quiz/next-question` | Fetch next question (difficulty-aware) |
+| `POST` | `/api/quiz/submit-answer` | Submit answer & update difficulty |
+| `GET` | `/api/quiz/stats` | Session performance stats |
+| `POST` | `/api/quiz/end` | Close session & save progress |
+
+### Student
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/students/me/stats` | Overall statistics |
+| `GET` | `/api/students/me/progress` | Course progress |
+| `GET` | `/api/students/me/activity` | Activity history |
+| `GET` | `/api/students/me/accuracy-history` | Accuracy over time |
+
+### Instructor
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/instructor/stats` | Dashboard statistics |
+| `GET` | `/api/instructor/students` | List all students |
+| `GET` | `/api/instructor/students/{userId}/details` | Detailed student stats |
+| `GET` | `/api/instructor/courses/{courseId}/questions` | Course questions |
+| `POST` | `/api/instructor/questions` | Create quiz question |
+| `PUT` | `/api/instructor/questions/{id}` | Update quiz question |
+| `GET` | `/api/instructor/analytics/daily-active` | Daily active users |
+
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/admin/platform-stats` | Overall platform statistics |
+| `GET` | `/api/admin/users` | List all users with roles |
+| `PUT` | `/api/admin/users/{id}/role` | Change user role |
+| `PUT` | `/api/admin/users/{id}/deactivate` | Deactivate user account |
+| `GET` | `/api/admin/courses` | Courses with enrollment stats |
+| `PUT` | `/api/admin/courses/{id}/publish` | Toggle course published status |
+| `GET` | `/api/admin/ml-status` | ML service health & model status |
+| `GET` | `/api/admin/ml-predictions` | Recent ML predictions |
+| `POST` | `/api/admin/ml-test` | Send test prediction to ML service |
+
+---
+
+## Project Structure
+
+```
 VR-Learning-Platform/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # CI/CD: automated deploy pipeline
 ├── backend/
-│   ├── VRCourses.API/
-│   │   ├── Controllers/    # REST Endpoints
-│   │   ├── Services/       # Business Logic & Adaptive Algorithm
-│   │   ├── Models/         # DB Entities & Data Transfer Objects (DTOs)
-│   │   └── Data/           # EF Core Context & Seed Data
-│   └── docker-compose.yml  # Infrastructure as Code
-└── frontend/
-    └── src/
-        ├── components/     # UI Components & Quiz Logic
-        ├── hooks/          # API Hooks (React Query)
-        ├── stores/         # Global State (Zustand)
-        └── pages/          # Application Views
+│   └── VRCourses.API/
+│       ├── Controllers/        # REST endpoints
+│       ├── Services/           # Business logic & adaptive algorithm
+│       ├── Models/             # Entities & DTOs
+│       └── Data/               # EF Core context & seed data
+├── frontend/
+│   └── src/
+│       ├── components/         # UI components & quiz logic
+│       ├── hooks/              # React Query hooks
+│       ├── stores/             # Zustand global state
+│       └── pages/              # Application views
+├── ml_module/
+│   └── app/
+│       ├── api/routes/         # FastAPI endpoints
+│       ├── services/           # Model loading & inference
+│       ├── config.py           # Pydantic settings
+│       └── main.py             # FastAPI entry point
+└── docker-compose.yml          # Orchestrates all 4 services
 ```
 
-## 🔮 Future Roadmap
+---
 
-* **ML Integration:** Migration of the adaptive engine to a dedicated **FastAPI** microservice utilizing **Scikit-learn** for advanced pedagogical forecasting.
-* **Instructor Dashboard:** Visual analytics for teachers to track class-wide progress.
-* **VR Sync:** Direct API integration with the VR headset client to sync learning progress.
+## Adaptive Algorithm
 
-## 📄 License
+The ML service combines a trained Scikit-learn model with a rule-based fallback:
 
-This project is licensed under the MIT License.
+| Condition | Action |
+|-----------|--------|
+| Accuracy ≥ 80% and response time < 30s | Increase difficulty |
+| Accuracy < 40% | Decrease difficulty |
+| Otherwise | Maintain current level |
 
------
+---
 
-### 📝 Dev Note on Quiz Logic
+## Deployment
 
-The current adaptation logic uses a **rule-based algorithm**:
+Push to `main` triggers automatic deployment:
 
-* **Accuracy ≥ 80% & Time \< 30s:** Increase difficulty level.
-* **Accuracy \< 40%:** Decrease difficulty level.
-* **Otherwise:** Maintain current challenge level.
+1. SSH into the production server
+2. Pull latest code
+3. Rebuild and restart all Docker containers
+4. Health check all services — fails the pipeline if any are unresponsive
 
------
+Required GitHub secrets: `DO_HOST`, `DO_USER`, `SSH_PRIVATE_KEY`, `JWT_SECRET`, `DB_PASSWORD`.
 
+---
+
+## Roadmap
+
+- [ ] VR headset API integration — sync learning progress directly from the headset client
+- [ ] Real-time notifications — SignalR-based alerts for instructors on student milestones
+- [ ] Export reports — PDF/CSV export of session analytics
+
+---
+
+## License
+
+MIT

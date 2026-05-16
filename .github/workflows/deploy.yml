@@ -1,0 +1,70 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            APP_DIR="/opt/vr-learning-platform"
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              git clone https://github.com/${{ github.repository }} "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin main
+            git reset --hard origin/main
+
+            cat > .env <<'EOF'
+            DB_USER=vrcourses_user
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_NAME=vrcourses_db
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET }}
+            VITE_API_URL=http://${{ secrets.DO_HOST }}:5272/api
+            ASPNETCORE_ENVIRONMENT=Production
+            LOG_LEVEL=Warning
+            BACKEND_PORT=5272
+            FRONTEND_PORT=3000
+            EOF
+
+            docker compose pull --quiet 2>/dev/null || true
+            docker compose up -d --build --remove-orphans
+
+            echo "--- Running containers ---"
+            docker compose ps
+
+      - name: Health check
+        run: |
+          echo "Waiting 45s for services to initialize..."
+          sleep 45
+
+          check() {
+            local name=$1
+            local url=$2
+            echo "Checking $name at $url ..."
+            curl --silent --fail --max-time 10 --retry 5 --retry-delay 10 \
+              --retry-connrefused "$url" > /dev/null
+            echo "$name: OK"
+          }
+
+          check "Frontend"   "http://${{ secrets.DO_HOST }}:3000"
+          check "Backend"    "http://${{ secrets.DO_HOST }}:5272/health"
+          check "ML service" "http://${{ secrets.DO_HOST }}:8000/health"
+
+          echo ""
+          echo "All services healthy. Deploy complete."
