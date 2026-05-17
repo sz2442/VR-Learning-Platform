@@ -67,6 +67,24 @@ public class InstructorController : ControllerBase
         return Ok(new { message = "Updated" });
     }
 
+    // DELETE /api/instructor/questions/:id
+    [HttpDelete("questions/{id:int}")]
+    public async Task<IActionResult> DeleteQuestion(int id)
+    {
+        var ok = await _instructorService.DeleteQuestionAsync(id);
+        if (!ok) return NotFound(new { message = "Question not found" });
+        return Ok(new { message = "Deleted" });
+    }
+
+    // PUT /api/instructor/lessons/:lessonId/content
+    [HttpPut("lessons/{lessonId:int}/content")]
+    public async Task<IActionResult> UpdateLessonContent(int lessonId, [FromBody] UpdateLessonContentDto dto)
+    {
+        var ok = await _instructorService.UpdateLessonContentAsync(lessonId, dto.ContentText, dto.VideoUrl);
+        if (!ok) return NotFound(new { message = "Lesson not found" });
+        return Ok(new { message = "Updated" });
+    }
+
     // GET /api/instructor/analytics/daily-active
     [HttpGet("analytics/daily-active")]
     public async Task<IActionResult> GetDailyActive()

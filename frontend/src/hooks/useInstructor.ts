@@ -57,10 +57,31 @@ export function useUpdateQuestion() {
   });
 }
 
+export function useDeleteQuestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => instructorApi.deleteQuestion(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course-questions'] });
+    },
+  });
+}
+
 export function useDailyActive() {
   return useQuery({
     queryKey: ['daily-active'],
     queryFn: instructorApi.getDailyActive,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpdateLessonContent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ lessonId, contentText, videoUrl }: { lessonId: number; contentText: string; videoUrl: string | null }) =>
+      instructorApi.updateLessonContent(lessonId, contentText, videoUrl),
+    onSuccess: (_data, { lessonId }) => {
+      qc.invalidateQueries({ queryKey: ['lesson', lessonId] });
+    },
   });
 }

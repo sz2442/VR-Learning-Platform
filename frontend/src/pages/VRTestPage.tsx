@@ -1330,6 +1330,13 @@ export function VRTestPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Auto-navigate back to course page 3s after mini quiz finishes
+  useEffect(() => {
+    if (!isFinished || urlQuizType !== 'mini' || !urlCourseId) return;
+    const timer = setTimeout(() => navigate(`/courses/${urlCourseId}`), 3000);
+    return () => clearTimeout(timer);
+  }, [isFinished, urlQuizType, urlCourseId, navigate]);
+
   // drag-drop state
   const [taskMode, setTaskMode]   = useState<'mcq' | 'dragdrop'>('mcq');
   const [dragTask, setDragTask]   = useState<DragDropTask | null>(null);
@@ -1338,9 +1345,18 @@ export function VRTestPage() {
   const handleXRStart = useCallback(() => { setIsXR(true); setIsLocked(false); }, []);
   const handleXREnd   = useCallback(() => { setIsXR(false); }, []);
 
-  const fetchNextQuestion = async (sid: number) => {
+  const fetchNextQuestion = async (
+    sid: number,
+    exhaustedStats?: { correct: number; total: number; difficulty: number },
+  ) => {
     try {
       const q = await quizApi.getNextQuestion(sid);
+      if (q === null) {
+        // Pool exhausted before maxQuestions — end the quiz now
+        const s = exhaustedStats ?? { correct: stats.correct, total: stats.total, difficulty: currentDifficulty };
+        await finishSession(sid, s.correct, s.total, s.difficulty);
+        return;
+      }
       setQuestion(q);
       setCurrentDifficulty(q.difficultyLevel);
       setSelectedAnswer(null);
@@ -1440,7 +1456,7 @@ export function VRTestPage() {
       if (newTotal >= maxQuestions) {
         await finishSession(sessionId, newCorrect, newTotal, result.newDifficulty);
       } else {
-        await fetchNextQuestion(sessionId);
+        await fetchNextQuestion(sessionId, { correct: newCorrect, total: newTotal, difficulty: result.newDifficulty });
       }
     } catch (err) {
       console.error('submitAnswer failed:', err);
@@ -1465,7 +1481,7 @@ export function VRTestPage() {
     } else {
       setTaskMode('mcq');
       setDragTask(null);
-      await fetchNextQuestion(sessionId);
+      await fetchNextQuestion(sessionId, { correct: newCorrect, total: newTotal, difficulty: currentDifficulty });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, stats, taskIndex, currentDifficulty, maxQuestions]);
@@ -1491,7 +1507,7 @@ export function VRTestPage() {
       if (newTotal >= maxQuestions) {
         await finishSession(sessionId, newCorrect, newTotal, result.newDifficulty);
       } else {
-        await fetchNextQuestion(sessionId);
+        await fetchNextQuestion(sessionId, { correct: newCorrect, total: newTotal, difficulty: result.newDifficulty });
       }
     } catch (err) {
       console.error('handleDbDragDropComplete failed:', err);

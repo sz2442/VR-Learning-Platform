@@ -7,12 +7,14 @@ import {
   StudentTable,
   StudentDetailModal,
   QuestionManager,
+  LessonContentManager,
   InstructorAnalytics,
 } from '@/components/instructor';
 import { useInstructorStats, useInstructorStudents } from '@/hooks/useInstructor';
 import { useCourses } from '@/hooks';
 
 type Tab = 'overview' | 'courses' | 'analytics';
+type CoursesSubTab = 'questions' | 'content';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -22,6 +24,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 export function InstructorPage() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [coursesSubTab, setCoursesSubTab] = useState<CoursesSubTab>('questions');
   const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useInstructorStats();
@@ -103,7 +106,30 @@ export function InstructorPage() {
             ) : courseList.length === 0 ? (
               <p className="py-10 text-center text-sm text-surface-500">No courses found.</p>
             ) : (
-              <QuestionManager courses={courseList} />
+              <div className="space-y-6">
+                {/* Sub-tabs */}
+                <div className="flex gap-1 rounded-lg border border-surface-700 bg-surface-800/40 p-1 w-fit">
+                  {(['questions', 'content'] as CoursesSubTab[]).map((sub) => (
+                    <button
+                      key={sub}
+                      onClick={() => setCoursesSubTab(sub)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-all ${
+                        coursesSubTab === sub
+                          ? 'bg-surface-700 text-surface-100 shadow'
+                          : 'text-surface-500 hover:text-surface-300'
+                      }`}
+                    >
+                      {sub === 'questions' ? 'Quiz Questions' : 'Lesson Content'}
+                    </button>
+                  ))}
+                </div>
+
+                {coursesSubTab === 'questions' ? (
+                  <QuestionManager courses={courseList} />
+                ) : (
+                  <LessonContentManager courses={courseList} />
+                )}
+              </div>
             )
           )}
 

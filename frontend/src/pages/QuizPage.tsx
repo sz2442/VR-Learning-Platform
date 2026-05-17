@@ -6,8 +6,6 @@ import { useNextQuestion, useSubmitAnswer, useQuizStats, useStartQuiz } from '@/
 import { useQuizStore } from '@/stores/quizStore';
 import toast from "react-hot-toast";
 
-const MAX_QUESTIONS = 10;
-
 export function QuizPage() {
     const { sessionId: sessionIdParam } = useParams<{ sessionId: string }>();
     const navigate = useNavigate();
@@ -15,9 +13,11 @@ export function QuizPage() {
     const sessionId = sessionIdParam ? Number(sessionIdParam) : null;
     const isValidSession = sessionId !== null && !isNaN(sessionId);
 
-    const { answeredCount, courseId, resetSession, getTimeSpent, syncProgress } = useQuizStore();
+    const { courseId, resetSession, getTimeSpent, syncProgress } = useQuizStore();
     const [showResults, setShowResults] = useState(false);
     const [lastResult, setLastResult] = useState<{ isCorrect: boolean; selectedId: number } | null>(null);
+    // nonce increments after each answer to force a fresh question fetch (avoids React Query serving stale data)
+    const [nonce, setNonce] = useState(0);
 
     // Валидация сессии
     useEffect(() => {
@@ -35,44 +35,74 @@ export function QuizPage() {
     useEffect(() => {
         if (stats) {
             syncProgress(stats.totalQuestions, stats.finalDifficulty);
-            if (stats.totalQuestions >= MAX_QUESTIONS) {
-                setShowResults(true);
-            }
         }
     }, [stats, syncProgress]);
 
-    // skip fetching once results are shown or limit is reached
-    const shouldFetchQuestion = !showResults && isValidSession && answeredCount < MAX_QUESTIONS;
+    // skip fetching once results are shown
+    const shouldFetchQuestion = !showResults && isValidSession;
 
-    const { data: question, isLoading: isLoadingQuestion, refetch } = useNextQuestion(
-        shouldFetchQuestion ? sessionId : null
+    const { data: question, isLoading: isLoadingQuestion, isError: isQuestionError } = useNextQuestion(
+        shouldFetchQuestion ? sessionId : null,
+        nonce,
     );
 
     const { mutate: submitAnswer, isPending: isSubmitting } = useSubmitAnswer();
     const { mutate: startQuiz } = useStartQuiz();
 
+    // Auto-submit drag-drop questions (no drag-drop UI outside VR)
     useEffect(() => {
-        if (shouldFetchQuestion && !isLoadingQuestion && !question && stats && stats.totalQuestions > 0) {
-            setShowResults(true);
-            refetchStats();
-        }
-    }, [question, isLoadingQuestion, shouldFetchQuestion, stats, refetchStats]);
+        if (!question || question.questionType !== 'dragdrop' || showResults || !isValidSession || sessionId === null) return;
+        const timer = setTimeout(() => {
+            submitAnswer({
+                sessionId,
+                questionId: question.questionId,
+                dragDropIsCorrect: true,
+                timeSpentSeconds: 0,
+            }, {
+                onSuccess: (result) => {
+                    setLastResult({ isCorrect: result.isCorrect, selectedId: -1 });
+                    setTimeout(() => {
+                        setLastResult(null);
+                        const currentCount = useQuizStore.getState().answeredCount;
+                        if (currentCount >= 20) {
+                            setShowResults(true);
+                            refetchStats();
+                        } else {
+                            setNonce(n => n + 1);
+                        }
+                    }, 1000);
+                },
+            });
+        }, 1500);
+        return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [question?.questionId, question?.questionType]);
 
+    // Detect quiz done: backend returns null (pool exhausted)
     useEffect(() => {
-        if (answeredCount >= MAX_QUESTIONS) {
+        if (!isLoadingQuestion && question === null && !showResults) {
             setShowResults(true);
             refetchStats();
         }
-    }, [answeredCount, refetchStats]);
+    }, [question, isLoadingQuestion, showResults, refetchStats]);
+
+    // Redirect on session error (expired/invalid session)
+    useEffect(() => {
+        if (isQuestionError) {
+            toast.error('Quiz session expired or not found');
+            resetSession();
+            navigate('/');
+        }
+    }, [isQuestionError, navigate, resetSession]);
 
     const handleSubmit = (answerId: number) => {
-        if (!isValidSession || sessionId === null) return;
+        if (!isValidSession || sessionId === null || !question) return;
 
         const timeSpent = getTimeSpent();
 
         submitAnswer({
             sessionId,
-            questionId: question!.questionId,
+            questionId: question.questionId,
             selectedAnswerId: answerId,
             timeSpentSeconds: timeSpent,
         }, {
@@ -81,14 +111,13 @@ export function QuizPage() {
 
                 setTimeout(() => {
                     setLastResult(null);
-
                     const currentCount = useQuizStore.getState().answeredCount;
-
-                    if (currentCount >= MAX_QUESTIONS) {
+                    if (currentCount >= 20) {
+                        // Hard cap for final quiz
                         setShowResults(true);
                         refetchStats();
                     } else {
-                        refetch();
+                        setNonce(n => n + 1); // triggers fresh question fetch
                     }
                 }, 1000);
             },
@@ -126,13 +155,13 @@ export function QuizPage() {
 
     return (
         <div className="min-h-screen bg-surface-50 dark:bg-surface-950 flex flex-col">
-            <QuizHeader totalQuestions={MAX_QUESTIONS} onExit={handleExit} />
+            <QuizHeader totalQuestions={20} onExit={handleExit} />
             <div className="mx-auto w-full max-w-3xl px-4 py-12 flex-1">
                 {isLoadingQuestion && !question ? (
                     <PageLoader />
                 ) : (
                     <QuizQuestion
-                        question={question}
+                        question={question ?? undefined}
                         isLoading={isLoadingQuestion}
                         onSubmit={handleSubmit}
                         isSubmitting={isSubmitting}

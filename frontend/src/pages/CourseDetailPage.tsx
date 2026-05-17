@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, BarChart3, Play } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import { Button, Badge, PageLoader } from '@/components/ui';
 import { useCourse, useStartQuiz } from '@/hooks';
 import { useCourseStructure } from '@/hooks/useCourseStructure';
@@ -329,9 +332,16 @@ function GuestCourseView({
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="max-w-2xl">
           <h2 className="font-display text-xl font-semibold mb-4">About this course</h2>
-          <p className="text-surface-600 dark:text-surface-300 whitespace-pre-line">
-            {course.description || course.shortDescription}
-          </p>
+          <div className="prose prose-surface dark:prose-invert max-w-none
+            prose-p:text-surface-600 dark:prose-p:text-surface-300
+            prose-headings:text-surface-900 dark:prose-headings:text-white
+            prose-a:text-primary-600 dark:prose-a:text-primary-400
+            prose-code:text-pink-600 dark:prose-code:text-pink-400 prose-code:bg-surface-100 dark:prose-code:bg-surface-800 prose-code:px-1 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+            prose-pre:bg-transparent prose-pre:p-0">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+              {course.description || course.shortDescription}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
     </div>

@@ -42,4 +42,12 @@ export const instructorApi = {
     const { data } = await apiClient.get('/instructor/analytics/daily-active');
     return data;
   },
+
+  deleteQuestion: async (id: number): Promise<void> => {
+    await apiClient.delete(`/instructor/questions/${id}`);
+  },
+
+  updateLessonContent: async (lessonId: number, contentText: string, videoUrl: string | null): Promise<void> => {
+    await apiClient.put(`/instructor/lessons/${lessonId}/content`, { contentText, videoUrl });
+  },
 };

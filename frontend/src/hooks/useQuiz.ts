@@ -10,7 +10,7 @@ export function useStartQuiz() {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (courseId: number) => quizApi.startSession(courseId),
+    mutationFn: (courseId: number) => quizApi.startSession(courseId, undefined, 'final'),
     onSuccess: (data, courseId) => {
       startSession(data.sessionId, courseId);
       navigate(`/quiz/${data.sessionId}`);
@@ -22,18 +22,19 @@ export function useStartQuiz() {
   });
 }
 
-export function useNextQuestion(sessionId: number | null) {
+export function useNextQuestion(sessionId: number | null, nonce: number = 0) {
   const startQuestion = useQuizStore((state) => state.startQuestion);
 
   return useQuery({
-    queryKey: ['quiz', 'question', sessionId],
+    // nonce changes on every refetch call so React Query never serves stale data
+    queryKey: ['quiz', 'question', sessionId, nonce],
     queryFn: async () => {
       const question = await quizApi.getNextQuestion(sessionId!);
-      startQuestion();
-      return question;
+      if (question) startQuestion();
+      return question; // null means pool exhausted
     },
     enabled: !!sessionId,
-    staleTime: 0, // Always fetch fresh question
+    staleTime: Infinity, // data is request-specific; nonce ensures freshness
     refetchOnWindowFocus: false,
   });
 }

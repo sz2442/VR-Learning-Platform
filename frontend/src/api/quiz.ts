@@ -14,9 +14,14 @@ export const quizApi = {
     return response.data;
   },
 
-  getNextQuestion: async (sessionId: number): Promise<Question> => {
-    const response = await apiClient.get<Question>(`/quiz/next-question?sessionId=${sessionId}`);
-    return response.data;
+  getNextQuestion: async (sessionId: number): Promise<Question | null> => {
+    try {
+      const response = await apiClient.get<Question>(`/quiz/next-question?sessionId=${sessionId}`);
+      return response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 404) return null; // pool exhausted — quiz is done
+      throw err;
+    }
   },
 
   submitAnswer: async (data: SubmitAnswerDto): Promise<SubmitAnswerResult> => {

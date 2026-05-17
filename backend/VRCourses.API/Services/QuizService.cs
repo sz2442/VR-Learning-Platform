@@ -113,7 +113,7 @@ public class QuizService : IQuizService
                 .ToListAsync()
             : new List<int>();
 
-        // Base query: correct course, correct module (if set)
+        // Base query: correct course, correct module (if set), correct quiz type
         IQueryable<Question> baseQ = _context.Questions
             .Include(q => q.Answers)
             .Where(q => q.CourseId == session.CourseId)
@@ -121,6 +121,15 @@ public class QuizService : IQuizService
 
         if (session.ModuleId.HasValue)
             baseQ = baseQ.Where(q => q.ModuleId == session.ModuleId);
+
+        // Filter by quiz type so mini and final pools don't bleed into each other.
+        // Legacy questions (null QuizType) are included in all session types for backwards compat.
+        if (session.QuizType == "final")
+            baseQ = baseQ.Where(q => q.QuizType == "finalquiz" || q.QuizType == null);
+        else if (session.QuizType == "mini")
+            baseQ = baseQ.Where(q => q.QuizType == "miniquiz" || q.QuizType == null);
+        else
+            baseQ = baseQ.Where(q => q.QuizType == null);
 
         // Try with anti-repeat exclusion
         var question = await baseQ

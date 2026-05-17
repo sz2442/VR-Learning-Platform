@@ -46,6 +46,12 @@ jobs:
             docker compose pull --quiet 2>/dev/null || true
             docker compose up -d --build --remove-orphans
 
+            echo "--- Seeding cosmos course data ---"
+            docker compose exec -T postgres psql \
+              -U "${DB_USER:-vrcourses_user}" \
+              -d "${DB_NAME:-vrcourses_db}" \
+              < backend/seed-cosmos-course.sql && echo "Seed OK" || echo "Seed failed (non-fatal)"
+
             echo "--- Running containers ---"
             docker compose ps
 

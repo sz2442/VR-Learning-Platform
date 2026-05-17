@@ -287,6 +287,30 @@ public class InstructorService : IInstructorService
         return true;
     }
 
+    public async Task<bool> DeleteQuestionAsync(int questionId)
+    {
+        var question = await _context.Questions
+            .Include(q => q.Answers)
+            .FirstOrDefaultAsync(q => q.Id == questionId);
+
+        if (question == null) return false;
+
+        _context.Answers.RemoveRange(question.Answers);
+        _context.Questions.Remove(question);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateLessonContentAsync(int lessonId, string contentText, string? videoUrl)
+    {
+        var lesson = await _context.Lessons.FindAsync(lessonId);
+        if (lesson == null) return false;
+        lesson.ContentText = contentText;
+        lesson.VideoUrl = string.IsNullOrWhiteSpace(videoUrl) ? null : videoUrl.Trim();
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<List<DailyActiveDto>> GetDailyActiveAsync()
     {
         var since = DateTime.UtcNow.Date.AddDays(-13);

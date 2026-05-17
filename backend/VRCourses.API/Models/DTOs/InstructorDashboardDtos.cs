@@ -1,5 +1,11 @@
 namespace VRCourses.API.Models.DTOs;
 
+public class UpdateLessonContentDto
+{
+    public string ContentText { get; set; } = string.Empty;
+    public string? VideoUrl { get; set; }
+}
+
 public class InstructorStatsDto
 {
     public int TotalStudents { get; set; }

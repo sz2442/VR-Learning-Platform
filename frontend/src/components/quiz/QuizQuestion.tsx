@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X } from 'lucide-react';
+import { Check, X, MousePointerClick } from 'lucide-react';
 import { Button, QuestionSkeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { Question, AnswerOption } from '@/types';
@@ -22,10 +22,10 @@ export function QuizQuestion({
 }: QuizQuestionProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
 
-  // Reset selection when new question loads
-  if (question && selectedAnswer !== null && !lastResult) {
-    // Don't reset during result display
-  }
+  // Reset selection whenever the question changes
+  useEffect(() => {
+    setSelectedAnswer(null);
+  }, [question?.questionId]);
 
   const handleSelect = (answerId: number) => {
     if (isSubmitting || lastResult) return;
@@ -45,6 +45,27 @@ export function QuizQuestion({
     return (
       <div className="text-center py-12">
         <p className="text-surface-500">No question available</p>
+      </div>
+    );
+  }
+
+  if (question.questionType === 'dragdrop') {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <span className="inline-block rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+            Difficulty: {question.difficultyLevel}/10
+          </span>
+          <h2 className="font-display text-2xl font-semibold text-surface-900 dark:text-surface-100">
+            {question.text}
+          </h2>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-900/20">
+          <MousePointerClick className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            This is a drag-and-drop question — available in VR mode. Crediting automatically…
+          </p>
+        </div>
       </div>
     );
   }

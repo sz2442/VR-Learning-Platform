@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, Pencil, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui';
 import { QuestionForm } from './QuestionForm';
-import { useCourseQuestions } from '@/hooks/useInstructor';
+import { useCourseQuestions, useDeleteQuestion } from '@/hooks/useInstructor';
+import toast from 'react-hot-toast';
 import type { CourseQuestionItem } from '@/types';
 
 interface QuestionManagerProps {
@@ -32,6 +33,7 @@ export function QuestionManager({ courses }: QuestionManagerProps) {
   const [editModuleId, setEditModuleId] = useState<number | null>(null);
 
   const { data: groups = [], isLoading } = useCourseQuestions(selectedCourseId);
+  const { mutate: deleteQuestion } = useDeleteQuestion();
 
   function openAdd(moduleId: number | null) {
     setEditQuestion(null);
@@ -113,12 +115,26 @@ export function QuestionManager({ courses }: QuestionManagerProps) {
                     <td className="px-4 py-3 text-center text-surface-400">{q.totalAttempts}</td>
                     <td className="px-4 py-3"><IncorrectRateBar rate={q.incorrectRate} /></td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => openEdit(q, group.moduleId)}
-                        className="rounded-lg p-1.5 text-surface-400 hover:bg-surface-700 hover:text-primary-400"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => openEdit(q, group.moduleId)}
+                          className="rounded-lg p-1.5 text-surface-400 hover:bg-surface-700 hover:text-primary-400"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!confirm(`Delete question "${q.text.slice(0, 60)}..."?`)) return;
+                            deleteQuestion(q.questionId, {
+                              onSuccess: () => toast.success('Question deleted'),
+                              onError: () => toast.error('Failed to delete question'),
+                            });
+                          }}
+                          className="rounded-lg p-1.5 text-surface-400 hover:bg-surface-700 hover:text-red-400"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -1,4 +1,7 @@
 import { CheckCircle, ExternalLink } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import { Button } from '@/components/ui';
 import { useLessonContent, useMarkLessonComplete } from '@/hooks/useCourseStructure';
 import { PageLoader } from '@/components/ui';
@@ -59,11 +62,23 @@ export function LessonView({ lessonId, moduleId, courseId, isCompleted, onComple
         </div>
       )}
 
-      {/* Lesson content — rendered as plain text with whitespace preserved */}
-      <div className="prose prose-surface dark:prose-invert max-w-none">
-        <div className="whitespace-pre-wrap text-surface-700 dark:text-surface-300 leading-relaxed text-base">
+      {/* Lesson content rendered as Markdown */}
+      <div className="prose prose-surface dark:prose-invert max-w-none
+        prose-headings:font-display prose-headings:text-surface-900 dark:prose-headings:text-white
+        prose-p:text-surface-700 dark:prose-p:text-surface-300 prose-p:leading-relaxed
+        prose-a:text-primary-600 dark:prose-a:text-primary-400 prose-a:no-underline hover:prose-a:underline
+        prose-strong:text-surface-900 dark:prose-strong:text-white
+        prose-code:text-pink-600 dark:prose-code:text-pink-400 prose-code:bg-surface-100 dark:prose-code:bg-surface-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+        prose-pre:bg-transparent prose-pre:p-0
+        prose-blockquote:border-primary-400 prose-blockquote:text-surface-600 dark:prose-blockquote:text-surface-400
+        prose-ul:text-surface-700 dark:prose-ul:text-surface-300
+        prose-ol:text-surface-700 dark:prose-ol:text-surface-300
+        prose-table:text-surface-700 dark:prose-table:text-surface-300
+        prose-th:bg-surface-100 dark:prose-th:bg-surface-800
+        prose-tr:border-surface-200 dark:prose-tr:border-surface-700">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
           {lesson.contentText}
-        </div>
+        </ReactMarkdown>
       </div>
 
       {/* Mark complete button */}

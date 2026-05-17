@@ -11,4 +11,6 @@ public interface IInstructorService
     Task<int> AddQuestionAsync(SaveQuestionDto dto);
     Task<bool> UpdateQuestionAsync(int questionId, SaveQuestionDto dto);
     Task<List<DailyActiveDto>> GetDailyActiveAsync();
+    Task<bool> DeleteQuestionAsync(int questionId);
+    Task<bool> UpdateLessonContentAsync(int lessonId, string contentText, string? videoUrl);
 }

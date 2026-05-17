@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* highlight.js theme for code blocks (GitHub Dark) */
+@import 'highlight.js/styles/github-dark.css';
+
 @layer base {
   :root {
     --background: 248 250 252;
