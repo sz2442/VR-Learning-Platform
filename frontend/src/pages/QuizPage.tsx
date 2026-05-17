@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { QuizHeader, QuizQuestion, QuizResults } from '@/components/quiz';
 import { PageLoader } from '@/components/ui';
 import { useNextQuestion, useSubmitAnswer, useQuizStats, useStartQuiz } from '@/hooks';
 import { useQuizStore } from '@/stores/quizStore';
+import { quizApi } from '@/api';
 import toast from "react-hot-toast";
 
 export function QuizPage() {
@@ -14,6 +16,7 @@ export function QuizPage() {
     const isValidSession = sessionId !== null && !isNaN(sessionId);
 
     const { courseId, resetSession, getTimeSpent, syncProgress } = useQuizStore();
+    const queryClient = useQueryClient();
     const [showResults, setShowResults] = useState(false);
     const [lastResult, setLastResult] = useState<{ isCorrect: boolean; selectedId: number } | null>(null);
     // nonce increments after each answer to force a fresh question fetch (avoids React Query serving stale data)
@@ -49,6 +52,14 @@ export function QuizPage() {
     const { mutate: submitAnswer, isPending: isSubmitting } = useSubmitAnswer();
     const { mutate: startQuiz } = useStartQuiz();
 
+    const finishQuiz = useCallback(async (sid: number) => {
+        try { await quizApi.endSession(sid); } catch { /* non-fatal */ }
+        await queryClient.invalidateQueries({ queryKey: ['student-stats'] });
+        await queryClient.invalidateQueries({ queryKey: ['student-progress'] });
+        await queryClient.invalidateQueries({ queryKey: ['accuracy-history'] });
+        await queryClient.invalidateQueries({ queryKey: ['student-activity'] });
+    }, [queryClient]);
+
     // Auto-submit drag-drop questions (no drag-drop UI outside VR)
     useEffect(() => {
         if (!question || question.questionType !== 'dragdrop' || showResults || !isValidSession || sessionId === null) return;
@@ -61,12 +72,13 @@ export function QuizPage() {
             }, {
                 onSuccess: (result) => {
                     setLastResult({ isCorrect: result.isCorrect, selectedId: -1 });
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         setLastResult(null);
                         const currentCount = useQuizStore.getState().answeredCount;
                         if (currentCount >= 20) {
                             setShowResults(true);
                             refetchStats();
+                            if (sessionId) await finishQuiz(sessionId);
                         } else {
                             setNonce(n => n + 1);
                         }
@@ -83,8 +95,9 @@ export function QuizPage() {
         if (!isLoadingQuestion && question === null && !showResults) {
             setShowResults(true);
             refetchStats();
+            if (sessionId) finishQuiz(sessionId);
         }
-    }, [question, isLoadingQuestion, showResults, refetchStats]);
+    }, [question, isLoadingQuestion, showResults, refetchStats, sessionId, finishQuiz]);
 
     // Redirect on session error (expired/invalid session)
     useEffect(() => {
@@ -109,13 +122,14 @@ export function QuizPage() {
             onSuccess: (result) => {
                 setLastResult({ isCorrect: result.isCorrect, selectedId: answerId });
 
-                setTimeout(() => {
+                setTimeout(async () => {
                     setLastResult(null);
                     const currentCount = useQuizStore.getState().answeredCount;
                     if (currentCount >= 20) {
                         // Hard cap for final quiz
                         setShowResults(true);
                         refetchStats();
+                        await finishQuiz(sessionId);
                     } else {
                         setNonce(n => n + 1); // triggers fresh question fetch
                     }
@@ -124,8 +138,11 @@ export function QuizPage() {
         });
     };
 
-    const handleExit = () => {
+    const handleExit = async () => {
         if (confirm('Are you sure you want to exit?')) {
+            if (sessionId) {
+                try { await quizApi.endSession(sessionId); } catch { /* non-fatal */ }
+            }
             resetSession();
             navigate('/');
         }

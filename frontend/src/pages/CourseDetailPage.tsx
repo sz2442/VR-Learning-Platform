@@ -54,8 +54,11 @@ export function CourseDetailPage() {
           score:    result.score,
         })
         .then(() => {
-          // Refresh course structure so the module lock/unlock state updates
           queryClient.invalidateQueries({ queryKey: ['course-structure', courseId] });
+          queryClient.invalidateQueries({ queryKey: ['student-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['student-progress'] });
+          queryClient.invalidateQueries({ queryKey: ['accuracy-history'] });
+          queryClient.invalidateQueries({ queryKey: ['student-activity'] });
         })
         .catch(console.error);
     } catch {

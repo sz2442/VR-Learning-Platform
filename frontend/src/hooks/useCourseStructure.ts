@@ -58,6 +58,11 @@ export function useSubmitMiniQuiz(courseId: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['course-structure', courseId] });
       queryClient.invalidateQueries({ queryKey: ['course-progress', courseId] });
+      // Invalidate student dashboard so the new session shows up
+      queryClient.invalidateQueries({ queryKey: ['student-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['student-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['accuracy-history'] });
+      queryClient.invalidateQueries({ queryKey: ['student-activity'] });
     },
   });
 }

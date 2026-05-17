@@ -80,6 +80,52 @@ public class ProgressService : IProgressService
         int score = total > 0 ? (int)Math.Round((double)correct / total * 100) : 0;
         bool passed = score >= passingScore;
 
+        // Record the mini-quiz as a proper QuizSession so it appears in student dashboard stats
+        var now = DateTime.UtcNow;
+        var session = new QuizSession
+        {
+            UserId = userId,
+            CourseId = dto.CourseId,
+            ModuleId = dto.ModuleId,
+            QuizType = "mini",
+            CurrentDifficulty = 5,
+            StartTime = now,
+            EndTime = now,
+            IsActive = false,
+        };
+        _context.QuizSessions.Add(session);
+        await _context.SaveChangesAsync();
+
+        foreach (var answer in dto.Answers)
+        {
+            var question = questions.FirstOrDefault(q => q.Id == answer.QuestionId);
+            if (question == null) continue;
+
+            bool answerCorrect;
+            int? selectedAnswerId = null;
+            if (question.QuestionType == "dragdrop")
+            {
+                answerCorrect = answer.DragDropIsCorrect ?? false;
+            }
+            else
+            {
+                var correctAnswer = question.Answers.FirstOrDefault(a => a.IsCorrect);
+                answerCorrect = correctAnswer != null && answer.SelectedAnswerId == correctAnswer.Id;
+                selectedAnswerId = answer.SelectedAnswerId;
+            }
+
+            _context.QuizAttempts.Add(new QuizAttempt
+            {
+                SessionId = session.Id,
+                QuestionId = answer.QuestionId,
+                SelectedAnswerId = selectedAnswerId,
+                IsCorrect = answerCorrect,
+                TimeSpentSeconds = 0,
+                Timestamp = now,
+            });
+        }
+        await _context.SaveChangesAsync();
+
         if (passed)
         {
             var existing = await _context.StudentProgress.FirstOrDefaultAsync(sp =>
