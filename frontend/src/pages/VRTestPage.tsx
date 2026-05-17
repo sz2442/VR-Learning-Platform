@@ -61,22 +61,6 @@ export function GLBModel({
 
 useGLTF.preload('/models/Room.glb');
 
-// ─── RotatingBox ──────────────────────────────────────────────────────────────
-
-function RotatingBox() {
-  const meshRef = useRef<THREE.Mesh>(null!);
-  useFrame((_, delta) => {
-    meshRef.current.rotation.y += delta * 0.8;
-    meshRef.current.rotation.x += delta * 0.3;
-  });
-  return (
-    <mesh ref={meshRef} position={[-2, 1.5, -4]}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#00e5c8" />
-    </mesh>
-  );
-}
-
 // ─── Scene ────────────────────────────────────────────────────────────────────
 
 interface SceneProps {
@@ -101,7 +85,6 @@ function Scene({ onLock, onUnlock, isXR }: SceneProps) {
       <pointLight color="#ffffff" intensity={0.55} position={[-1.5, 1.8, -1]} />
       <pointLight color="#ffffff" intensity={0.4} position={[1.5, 1.4, -1]} />
       <Environment preset="city" background={false} />
-      <RotatingBox />
       <GLBModel url="/models/Room.glb" position={[2, -1.75, 0]} scale={[1.5, 1.5, 1.5]} />
       {!isXR && <PointerLockControls onLock={onLock} onUnlock={onUnlock} />}
     </>
@@ -288,11 +271,11 @@ function PanelBg({ width, height }: { width: number; height: number }) {
     <>
       <mesh position={[0, 0, -0.002]}>
         <planeGeometry args={[width + 0.012, height + 0.012]} />
-        <meshStandardMaterial color="#00e5c8" transparent opacity={0.2} />
+        <meshStandardMaterial color="#00e5c8" transparent opacity={0.2} depthWrite={true} depthTest={true} />
       </mesh>
-      <mesh>
+      <mesh renderOrder={1}>
         <planeGeometry args={[width, height]} />
-        <meshStandardMaterial color="#0e1220" transparent opacity={0.92} />
+        <meshStandardMaterial color="#0e1220" transparent={false} depthWrite={true} depthTest={true} />
       </mesh>
     </>
   );
@@ -1159,7 +1142,7 @@ function DebugPanel({
   const untilNext = attemptsInBlock === 0 && stats.total > 0 ? 0 : checkpointInterval - attemptsInBlock;
 
   return (
-    <group position={[1.8, 1.6, -1.5]} rotation={[0, -0.4, 0]}>
+    <group position={[2.4, 1.5, -0.8]} rotation={[0, -0.75, 0]}>
       <PanelBg width={0.72} height={1.1} />
 
       {/* Title */}
