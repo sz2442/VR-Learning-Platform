@@ -68,7 +68,6 @@ export function useQuizStats(sessionId: number | null) {
             if (!sessionId || isNaN(sessionId)) {
                 throw new Error('Invalid session ID for stats');
             }
-            console.log('📊 Fetching stats for session:', sessionId);
             return quizApi.getStats(sessionId);
         },
         enabled: sessionId !== null && !isNaN(sessionId),

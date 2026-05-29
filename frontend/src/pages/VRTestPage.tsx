@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Environment, PointerLockControls, useGLTF, Text } from '@react-three/drei';
+import { Environment, PointerLockControls, useGLTF, Text, Float, Stars, RoundedBox } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { XR, Controllers, Hands, VRButton, Interactive, useController, useXR } from '@react-three/xr';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as THREE from 'three';
@@ -78,13 +79,14 @@ function Scene({ onLock, onUnlock, isXR }: SceneProps) {
         position={[3, 8, 5]}
         intensity={1.2}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
       />
       <directionalLight position={[-4, 5, -2]} intensity={0.65} color="#c8e7ff" />
       <pointLight color="#ffffff" intensity={0.55} position={[-1.5, 1.8, -1]} />
       <pointLight color="#ffffff" intensity={0.4} position={[1.5, 1.4, -1]} />
       <Environment preset="city" background={false} />
+      <Stars radius={60} depth={30} count={3000} factor={2} saturation={0} fade speed={0.6} />
       <GLBModel url="/models/Room.glb" position={[2, -1.75, 0]} scale={[1.5, 1.5, 1.5]} />
       {!isXR && <PointerLockControls onLock={onLock} onUnlock={onUnlock} />}
     </>
@@ -269,14 +271,22 @@ function difficultyLabel(level: number): string {
 function PanelBg({ width, height }: { width: number; height: number }) {
   return (
     <>
-      <mesh position={[0, 0, -0.002]}>
-        <planeGeometry args={[width + 0.012, height + 0.012]} />
-        <meshStandardMaterial color="#00e5c8" transparent opacity={0.2} depthWrite={true} depthTest={true} />
+      {/* Teal glow border — bloom source */}
+      <mesh position={[0, 0, -0.022]}>
+        <planeGeometry args={[width + 0.01, height + 0.01]} />
+        <meshStandardMaterial
+          color="#00e5c8"
+          emissive="#00e5c8"
+          emissiveIntensity={0.9}
+          transparent
+          opacity={0.18}
+          depthWrite={false}
+        />
       </mesh>
-      <mesh renderOrder={1}>
-        <planeGeometry args={[width, height]} />
-        <meshStandardMaterial color="#0e1220" transparent={false} depthWrite={true} depthTest={true} />
-      </mesh>
+      {/* 3-D rounded panel body */}
+      <RoundedBox args={[width, height, 0.03]} radius={0.025} smoothness={4} position={[0, 0, -0.015]}>
+        <meshStandardMaterial color="#0b0f1a" metalness={0.15} roughness={0.75} />
+      </RoundedBox>
     </>
   );
 }
@@ -343,6 +353,19 @@ function DropZone3D({ zone, placedShapes, isActive, onSelect }: {
   onSelect: (zoneId: string) => void;
 }) {
   const pos: [number, number, number] = [zone.position.x, zone.position.y, zone.position.z];
+  const wireRef = useRef<THREE.Mesh>(null!);
+  useFrame(({ clock }) => {
+    if (!wireRef.current) return;
+    const mat = wireRef.current.material as THREE.MeshStandardMaterial;
+    if (isActive) {
+      const pulse = 0.5 + 0.45 * Math.sin(clock.elapsedTime * 5);
+      mat.emissiveIntensity = pulse;
+      mat.opacity = 0.18 + 0.32 * pulse;
+    } else {
+      mat.emissiveIntensity = 0;
+      mat.opacity = 0.12;
+    }
+  });
   return (
     <group position={pos}>
       {/* platform */}
@@ -354,14 +377,21 @@ function DropZone3D({ zone, placedShapes, isActive, onSelect }: {
             transparent
             opacity={0.8}
             emissive={isActive ? '#00e5c8' : '#000000'}
-            emissiveIntensity={isActive ? 0.2 : 0}
+            emissiveIntensity={isActive ? 0.6 : 0}
           />
         </mesh>
       </Interactive>
-      {/* wireframe border — glows when a grab is active */}
-      <mesh position={[0, -0.04, 0]}>
+      {/* wireframe border — emissive teal, pulses when active */}
+      <mesh ref={wireRef} position={[0, -0.04, 0]}>
         <boxGeometry args={[0.40, 0.015, 0.40]} />
-        <meshStandardMaterial color="#00e5c8" transparent opacity={isActive ? 0.5 : 0.12} wireframe />
+        <meshStandardMaterial
+          color="#00e5c8"
+          emissive="#00e5c8"
+          emissiveIntensity={0}
+          transparent
+          opacity={0.12}
+          wireframe
+        />
       </mesh>
       <Text position={[0, 0.08, 0]} fontSize={0.045} color={isActive ? '#00e5c8' : '#94a3b8'} anchorX="center">
         {zone.label}
@@ -623,16 +653,18 @@ function TextDragDropScene({
   }, [allPlaced, placements, data, onComplete]);
 
   const PANEL_W = 1.6;
-  const PANEL_H = 1.7;
+  const PANEL_H = 1.95;
   const ZONE_H = 0.18;
   const ZONE_Y_START = 0.54;
   const ZONE_STEP = 0.215;
+  const ITEM_Y_START = -0.47;
+  const ITEM_ROW_STEP = 0.14;
 
   return (
     <group position={[0, 1.5, -2.2]}>
       <PanelBg width={PANEL_W} height={PANEL_H} />
 
-      <Text position={[0, 0.77, 0.01]} fontSize={0.032} color="#00e5c8" anchorX="center" maxWidth={1.5} textAlign="center">
+      <Text position={[0, 0.84, 0.01]} fontSize={0.032} color="#00e5c8" anchorX="center" maxWidth={1.5} textAlign="center">
         {question.text}
       </Text>
 
@@ -648,16 +680,11 @@ function TextDragDropScene({
               <planeGeometry args={[PANEL_W - 0.06, ZONE_H]} />
               <meshStandardMaterial color={placedItem ? '#0d2d2d' : '#111827'} transparent opacity={0.95} />
             </mesh>
-            {isActiveTarget && !placedItem && (
-              <mesh position={[0, 0, -0.001]}>
-                <planeGeometry args={[PANEL_W - 0.04, ZONE_H + 0.01]} />
-                <meshStandardMaterial color="#00e5c8" transparent opacity={0.12} />
-              </mesh>
-            )}
+            <PulsingBorder width={PANEL_W - 0.04} height={ZONE_H + 0.01} active={isActiveTarget && !placedItem} />
             <Interactive onSelect={() => handleZoneClick(zone.id)}>
               <mesh position={[0.25, 0, 0.005]}>
                 <planeGeometry args={[0.9, ZONE_H - 0.02]} />
-                <meshStandardMaterial transparent opacity={0} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
               </mesh>
             </Interactive>
             <Text position={[-0.72, 0, 0.01]} fontSize={0.022} color="#94a3b8" anchorX="left" maxWidth={0.62} textAlign="left">
@@ -674,7 +701,7 @@ function TextDragDropScene({
         );
       })}
 
-      <Text position={[-0.72, -0.43, 0.01]} fontSize={0.024} color="#64748b" anchorX="left">
+      <Text position={[-0.72, -0.34, 0.01]} fontSize={0.024} color="#64748b" anchorX="left">
         {selectedItemId ? 'Selected — click a zone to place:' : 'Click an item to select:'}
       </Text>
 
@@ -682,7 +709,7 @@ function TextDragDropScene({
         const col = idx % 2;
         const row = Math.floor(idx / 2);
         const x = col === 0 ? -0.40 : 0.40;
-        const y = -0.54 - row * 0.115;
+        const y = ITEM_Y_START - row * ITEM_ROW_STEP;
         const isSelected = selectedItemId === item.id;
         const isPlaced = placements.has(item.id);
 
@@ -710,11 +737,17 @@ function TextDragDropScene({
         );
       })}
 
-      <group position={[0, -0.74, 0.01]}>
+      <group position={[0, -0.86, 0.01]}>
         <Interactive onSelect={allPlaced ? handleSubmit : () => undefined}>
           <mesh>
             <planeGeometry args={[1.2, 0.092]} />
-            <meshStandardMaterial color={allPlaced ? '#00e5c8' : '#0d2d2d'} transparent opacity={allPlaced ? 1 : 0.5} />
+            <meshStandardMaterial
+              color={allPlaced ? '#00e5c8' : '#0d2d2d'}
+              emissive={allPlaced ? '#00e5c8' : '#000000'}
+              emissiveIntensity={allPlaced ? 1.8 : 0}
+              transparent
+              opacity={allPlaced ? 1 : 0.5}
+            />
           </mesh>
         </Interactive>
         <Text position={[0, 0, 0.02]} fontSize={0.042} color={allPlaced ? '#0a0c12' : '#334155'} anchorX="center">
@@ -723,7 +756,7 @@ function TextDragDropScene({
       </group>
 
       {selectedItemId && (
-        <Text position={[0, -0.655, 0.01]} fontSize={0.026} color="#a78bfa" anchorX="center">
+        <Text position={[0, -0.74, 0.01]} fontSize={0.026} color="#a78bfa" anchorX="center">
           {isPresenting ? 'Point at a zone and squeeze trigger' : 'Now click a zone above'}
         </Text>
       )}
@@ -764,6 +797,7 @@ function MainTaskPanel({
   courses, selectedCourseId, onSelectCourse,
   maxQuestions, hasCourseParam, quizType,
 }: MainTaskPanelProps) {
+  const [hoveredAnswer, setHoveredAnswer] = useState<number | null>(null);
   const progressFill = 1.2 * (stats.total / maxQuestions);
   const progressFillX = -1.2 / 2 + progressFill / 2;
 
@@ -996,7 +1030,7 @@ function MainTaskPanel({
       {stats.total > 0 && (
         <mesh position={[progressFillX, 0.35, 0.02]}>
           <planeGeometry args={[progressFill, 0.015]} />
-          <meshStandardMaterial color="#00e5c8" />
+          <meshStandardMaterial color="#00e5c8" emissive="#00e5c8" emissiveIntensity={2.0} />
         </mesh>
       )}
 
@@ -1006,19 +1040,33 @@ function MainTaskPanel({
 
       {question.answers.map((ans, idx) => {
         const isSelected = selectedAnswer === ans.answerId;
+        const isHovered = hoveredAnswer === ans.answerId;
         const yPos = 0.0 - idx * 0.13;
         return (
-          <group key={ans.answerId} position={[0, yPos, 0.01]}>
+          <group key={ans.answerId} position={[0, yPos, 0.01]} scale={isHovered && !isSelected ? 1.03 : 1}>
             {isSelected && (
               <mesh position={[0, 0, 0.005]}>
                 <planeGeometry args={[1.21, 0.112]} />
-                <meshStandardMaterial color="#00e5c8" transparent opacity={0.25} />
+                <meshStandardMaterial color="#00e5c8" emissive="#00e5c8" emissiveIntensity={0.5} transparent opacity={0.25} />
               </mesh>
             )}
-            <Interactive onSelect={() => onSelect(ans.answerId)}>
-              <mesh>
+            <Interactive
+              onSelect={() => onSelect(ans.answerId)}
+              onHover={() => setHoveredAnswer(ans.answerId)}
+              onBlur={() => setHoveredAnswer(null)}
+            >
+              <mesh
+                onPointerOver={() => setHoveredAnswer(ans.answerId)}
+                onPointerOut={() => setHoveredAnswer(null)}
+              >
                 <planeGeometry args={[1.2, 0.11]} />
-                <meshStandardMaterial color={isSelected ? '#0d2d2d' : '#111827'} transparent opacity={0.95} />
+                <meshStandardMaterial
+                  color={isSelected ? '#0d2d2d' : isHovered ? '#1a2436' : '#111827'}
+                  emissive={isSelected ? '#00e5c8' : '#000000'}
+                  emissiveIntensity={isSelected ? 0.12 : 0}
+                  transparent
+                  opacity={0.95}
+                />
               </mesh>
             </Interactive>
             <Text position={[-0.52, 0, 0.02]} fontSize={0.042} color={isSelected ? '#00e5c8' : '#64748b'} anchorX="left">
@@ -1037,6 +1085,8 @@ function MainTaskPanel({
             <planeGeometry args={[1.2, 0.1]} />
             <meshStandardMaterial
               color={selectedAnswer !== null ? '#00e5c8' : '#0d2d2d'}
+              emissive={selectedAnswer !== null ? '#00e5c8' : '#000000'}
+              emissiveIntensity={selectedAnswer !== null ? 1.8 : 0}
               transparent
               opacity={selectedAnswer !== null ? 1 : 0.5}
             />
@@ -1226,6 +1276,56 @@ function DebugPanel({
         <Text position={[0, -0.41, 0.01]} fontSize={0.018} color="#475569" anchorX="center">No attempts yet</Text>
       )}
     </group>
+  );
+}
+
+// ─── PostProcessingEffects ────────────────────────────────────────────────────
+
+function PostProcessingEffects() {
+  const isPresenting = useXR((s) => s.isPresenting);
+  if (isPresenting) return null;
+  return (
+    <EffectComposer>
+      <Bloom
+        luminanceThreshold={0.55}
+        luminanceSmoothing={0.3}
+        mipmapBlur
+        intensity={1.4}
+        radius={0.7}
+      />
+      <Vignette eskil={false} offset={0.12} darkness={0.65} />
+    </EffectComposer>
+  );
+}
+
+// ─── PulsingBorder ────────────────────────────────────────────────────────────
+
+function PulsingBorder({ width, height, active }: { width: number; height: number; active: boolean }) {
+  const ref = useRef<THREE.Mesh>(null!);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const mat = ref.current.material as THREE.MeshStandardMaterial;
+    if (active) {
+      const pulse = 0.5 + 0.45 * Math.sin(clock.elapsedTime * 5);
+      mat.emissiveIntensity = pulse;
+      mat.opacity = 0.08 + 0.1 * pulse;
+    } else {
+      mat.emissiveIntensity = 0;
+      mat.opacity = 0;
+    }
+  });
+  return (
+    <mesh ref={ref} position={[0, 0, -0.001]}>
+      <planeGeometry args={[width + 0.008, height + 0.008]} />
+      <meshStandardMaterial
+        color="#00e5c8"
+        emissive="#00e5c8"
+        emissiveIntensity={0}
+        transparent
+        opacity={0}
+        depthWrite={false}
+      />
+    </mesh>
   );
 }
 
@@ -1613,7 +1713,13 @@ export function VRTestPage() {
       <Canvas
         camera={{ position: [0, 1.6, 3], fov: 75 }}
         style={{ width: '100%', height: '100%' }}
-        gl={{ antialias: true }}
+        shadows="soft"
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0,
+          outputColorSpace: THREE.SRGBColorSpace,
+        }}
       >
         <XR referenceSpace="local-floor" onSessionStart={handleXRStart} onSessionEnd={handleXREnd}>
           <Controllers
@@ -1628,35 +1734,38 @@ export function VRTestPage() {
           <XRThumbstickDebugToggle onToggle={() => setShowDebug((v) => !v)} />
           <Scene onLock={() => setIsLocked(true)} onUnlock={() => setIsLocked(false)} isXR={isXR} />
 
-          {taskMode === 'dragdrop' && dragTask ? (
-            <DragDropScene task={dragTask} onComplete={handleDragDropComplete} />
-          ) : question?.questionType === 'dragdrop' && question.dragDropData ? (
-            <TextDragDropScene question={question} onComplete={handleDbDragDropComplete} />
-          ) : (
-            <MainTaskPanel
-              question={question}
-              stats={stats}
-              selectedAnswer={selectedAnswer}
-              onSelect={setSelectedAnswer}
-              onSubmit={submitAnswer}
-              onStart={startQuiz}
-              onExit={handleExitRequest}
-              onExitConfirm={handleExitConfirm}
-              onExitCancel={handleExitCancel}
-              showExitConfirm={showExitConfirm}
-              sessionId={sessionId}
-              isLoading={isLoading}
-              currentDifficulty={currentDifficulty}
-              isFinished={isFinished}
-              finalStats={finalStats}
-              courses={courses}
-              selectedCourseId={selectedCourseId}
-              onSelectCourse={setSelectedCourseId}
-              maxQuestions={maxQuestions}
-              hasCourseParam={hasCourseParam}
-              quizType={activeQuizType}
-            />
-          )}
+          <Float speed={1} rotationIntensity={0.08} floatIntensity={0.25}>
+            {taskMode === 'dragdrop' && dragTask ? (
+              <DragDropScene task={dragTask} onComplete={handleDragDropComplete} />
+            ) : question?.questionType === 'dragdrop' && question.dragDropData ? (
+              <TextDragDropScene question={question} onComplete={handleDbDragDropComplete} />
+            ) : (
+              <MainTaskPanel
+                question={question}
+                stats={stats}
+                selectedAnswer={selectedAnswer}
+                onSelect={setSelectedAnswer}
+                onSubmit={submitAnswer}
+                onStart={startQuiz}
+                onExit={handleExitRequest}
+                onExitConfirm={handleExitConfirm}
+                onExitCancel={handleExitCancel}
+                showExitConfirm={showExitConfirm}
+                sessionId={sessionId}
+                isLoading={isLoading}
+                currentDifficulty={currentDifficulty}
+                isFinished={isFinished}
+                finalStats={finalStats}
+                courses={courses}
+                selectedCourseId={selectedCourseId}
+                onSelectCourse={setSelectedCourseId}
+                maxQuestions={maxQuestions}
+                hasCourseParam={hasCourseParam}
+                quizType={activeQuizType}
+              />
+            )}
+          </Float>
+          <PostProcessingEffects />
 
           <AIAssistantPanel difficulty={currentDifficulty} />
           <PerformancePanel stats={stats} />

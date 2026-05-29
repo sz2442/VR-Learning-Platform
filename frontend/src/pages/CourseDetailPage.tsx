@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, BarChart3, Play } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -28,6 +29,7 @@ export function CourseDetailPage() {
   const { courseId: paramId } = useParams<{ courseId: string }>();
   const courseId = Number(paramId);
   const navigate = useNavigate();
+  const { t } = useTranslation('courses');
 
   const { isAuthenticated } = useAuthStore();
   const { data: course, isLoading: courseLoading } = useCourse(courseId);
@@ -74,9 +76,9 @@ export function CourseDetailPage() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-surface-900 dark:text-white">Course not found</h2>
+          <h2 className="text-2xl font-bold text-surface-900 dark:text-white">{t('notFound')}</h2>
           <Link to="/" className="mt-4 inline-block">
-            <Button variant="primary">Back to Courses</Button>
+            <Button variant="primary">{t('backToCourses')}</Button>
           </Link>
         </div>
       </div>
@@ -109,10 +111,10 @@ export function CourseDetailPage() {
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center p-8">
           <h2 className="text-xl font-semibold text-surface-700 dark:text-surface-300 mb-2">
-            Select a lesson or quiz from the sidebar
+            {t('selectLesson')}
           </h2>
           <p className="text-surface-500 text-sm max-w-sm">
-            Work through each module in order. Complete the module quiz to unlock the next module.
+            {t('selectLessonDesc')}
           </p>
         </div>
       );
@@ -122,16 +124,15 @@ export function CourseDetailPage() {
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[300px] p-8 text-center">
           <h2 className="text-2xl font-bold font-display mb-3 text-surface-900 dark:text-white">
-            Final Quiz
+            {t('finalQuiz')}
           </h2>
           <p className="text-surface-500 mb-6 max-w-md">
-            This is the adaptive final assessment. It uses AI to adjust question difficulty in real time
-            based on your performance. Good luck!
+            {t('finalQuizDesc')}
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <Button variant="primary" size="lg" onClick={handleStartFinalQuiz} isLoading={isStarting}>
               <Play className="mr-2 h-5 w-5" />
-              Start Final Quiz
+              {t('startFinalQuiz')}
             </Button>
             <Button
               variant="outline"
@@ -139,7 +140,7 @@ export function CourseDetailPage() {
               onClick={() => navigate(`/vr-quiz/${courseId}/final`)}
             >
               <Play className="mr-2 h-5 w-5" />
-              Start in VR
+              {t('startInVR')}
             </Button>
           </div>
         </div>
@@ -186,7 +187,7 @@ export function CourseDetailPage() {
                 onClick={() => navigate(`/vr-quiz/${courseId}/${activeView.moduleId}/mini`)}
               >
                 <Play className="mr-2 h-4 w-4" />
-                Take Mini Quiz in VR instead
+                {t('takeMiniQuizVR')}
               </Button>
             </div>
           )}
@@ -207,7 +208,7 @@ export function CourseDetailPage() {
             className="mb-3 inline-flex items-center gap-2 text-surface-300 hover:text-white transition-colors text-sm"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Courses
+            {t('backToCourses')}
           </Link>
 
           <div className="flex flex-wrap items-start gap-4 justify-between">
@@ -221,7 +222,7 @@ export function CourseDetailPage() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <BarChart3 className="h-4 w-4" />
-                  <span>Adaptive difficulty</span>
+                  <span>{t('adaptiveDifficulty')}</span>
                 </div>
               </div>
             </div>
@@ -243,7 +244,7 @@ export function CourseDetailPage() {
         <aside className="hidden lg:flex flex-col w-72 shrink-0 border-r border-surface-200 dark:border-surface-700 overflow-hidden">
           <div className="px-4 py-3 border-b border-surface-200 dark:border-surface-700">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-surface-500">
-              Course Content
+              {t('courseContent')}
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -263,7 +264,7 @@ export function CourseDetailPage() {
           <div className="lg:hidden border-b border-surface-200 dark:border-surface-700">
             <details className="group">
               <summary className="flex items-center justify-between px-4 py-3 cursor-pointer font-medium text-sm text-surface-700 dark:text-surface-300">
-                Course Content
+                {t('courseContent')}
                 <span className="text-xs text-surface-400 group-open:rotate-180 transition-transform">▼</span>
               </summary>
               <div className="border-t border-surface-200 dark:border-surface-700">
@@ -301,13 +302,14 @@ function GuestCourseView({
   course: { title: string; shortDescription: string; description?: string; difficulty: string; durationMinutes: number; imageUrl: string };
   onStart: () => void;
 }) {
+  const { t } = useTranslation('courses');
   return (
     <div className="min-h-screen">
       <div className="bg-gradient-to-br from-surface-900 to-surface-800 text-white">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <Link to="/" className="mb-6 inline-flex items-center gap-2 text-surface-300 hover:text-white transition-colors">
             <ArrowLeft className="h-4 w-4" />
-            Back to Courses
+            {t('backToCourses')}
           </Link>
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
@@ -316,16 +318,16 @@ function GuestCourseView({
               <p className="mt-4 text-lg text-surface-300">{course.shortDescription}</p>
               <div className="mt-6 flex flex-wrap items-center gap-6 text-surface-300">
                 <div className="flex items-center gap-2"><Clock className="h-5 w-5" /><span>{formatDuration(course.durationMinutes)}</span></div>
-                <div className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /><span>Adaptive difficulty 1-10</span></div>
+                <div className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /><span>{t('adaptiveDifficulty110')}</span></div>
               </div>
             </div>
             <div>
               <div className="rounded-xl bg-white text-surface-900 p-6 shadow-lg">
-                <h3 className="font-display text-xl font-semibold">Ready to learn?</h3>
-                <p className="mt-2 text-sm text-surface-500">Log in to access the full structured course with modules, lessons, and quizzes.</p>
+                <h3 className="font-display text-xl font-semibold">{t('readyToLearn')}</h3>
+                <p className="mt-2 text-sm text-surface-500">{t('loginToAccess')}</p>
                 <Button variant="primary" size="lg" className="mt-6 w-full" onClick={onStart}>
                   <Play className="mr-2 h-5 w-5" />
-                  Login to Start
+                  {t('loginToStart')}
                 </Button>
               </div>
             </div>
@@ -334,7 +336,7 @@ function GuestCourseView({
       </div>
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="max-w-2xl">
-          <h2 className="font-display text-xl font-semibold mb-4">About this course</h2>
+          <h2 className="font-display text-xl font-semibold mb-4">{t('aboutCourse')}</h2>
           <div className="prose prose-surface dark:prose-invert max-w-none
             prose-p:text-surface-600 dark:prose-p:text-surface-300
             prose-headings:text-surface-900 dark:prose-headings:text-white

@@ -1,7 +1,10 @@
 import { GraduationCap, Github, Twitter, Linkedin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export function Footer() {
+  const { t } = useTranslation('nav');
+
   return (
     <footer className="border-t border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-950">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -18,24 +21,23 @@ export function Footer() {
               </div>
             </Link>
             <p className="mt-4 max-w-md text-sm text-surface-500">
-              Experience personalized learning with AI-powered adaptive education. 
-              Our platform adjusts to your pace and learning style for optimal results.
+              {t('footer.tagline')}
             </p>
           </div>
 
           {/* Links */}
           <div>
-            <h4 className="mb-4 font-semibold">Platform</h4>
+            <h4 className="mb-4 font-semibold">{t('platform')}</h4>
             <ul className="space-y-2 text-sm text-surface-500">
-              <li><Link to="/" className="hover:text-primary-500 transition-colors">Courses</Link></li>
-              <li><Link to="/my-learning" className="hover:text-primary-500 transition-colors">My Learning</Link></li>
-              <li><a href="#" className="hover:text-primary-500 transition-colors">About</a></li>
+              <li><Link to="/" className="hover:text-primary-500 transition-colors">{t('courses')}</Link></li>
+              <li><Link to="/my-learning" className="hover:text-primary-500 transition-colors">{t('myLearning')}</Link></li>
+              <li><a href="#" className="hover:text-primary-500 transition-colors">{t('about')}</a></li>
             </ul>
           </div>
 
           {/* Social */}
           <div>
-            <h4 className="mb-4 font-semibold">Connect</h4>
+            <h4 className="mb-4 font-semibold">{t('connect')}</h4>
             <div className="flex gap-3">
               <a href="#" className="rounded-lg p-2 text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-800">
                 <Github className="h-5 w-5" />
@@ -51,7 +53,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 border-t border-surface-200 pt-8 text-center text-sm text-surface-400 dark:border-surface-800">
-          <p>&copy; {new Date().getFullYear()} VR Meta University. Diploma Project by IT2-2217.</p>
+          <p>{t('footer.copyright', { year: new Date().getFullYear() })}</p>
         </div>
       </div>
     </footer>

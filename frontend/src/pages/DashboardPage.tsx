@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   Activity,
   BookOpen,
@@ -43,6 +44,7 @@ function getInitials(name: string) {
 
 export function DashboardPage() {
   const { user } = useAuthStore();
+  const { t, i18n } = useTranslation('dashboard');
   const { data: stats, isLoading: statsLoading } = useStudentStats();
   const { data: progress = [], isLoading: progressLoading } = useStudentProgress();
   const { data: activity = [], isLoading: activityLoading } = useStudentActivity();
@@ -50,7 +52,7 @@ export function DashboardPage() {
 
   const hasData = (stats?.totalSessions ?? 0) > 0;
   const memberSince = stats?.memberSince
-    ? new Date(stats.memberSince).toLocaleDateString('en-US', {
+    ? new Date(stats.memberSince).toLocaleDateString(i18n.resolvedLanguage, {
         month: 'long',
         year: 'numeric',
       })
@@ -75,12 +77,12 @@ export function DashboardPage() {
                 {user?.name ?? 'Student'}
               </h1>
               <span className="rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-400">
-                Student
+                {t('student')}
               </span>
             </div>
             <p className="text-sm text-surface-500">{user?.email}</p>
             {memberSince && (
-              <p className="text-xs text-surface-400 mt-0.5">Member since {memberSince}</p>
+              <p className="text-xs text-surface-400 mt-0.5">{t('memberSince', { date: memberSince })}</p>
             )}
           </div>
         </motion.div>
@@ -101,35 +103,35 @@ export function DashboardPage() {
               <StatsCard
                 icon={<Activity className="h-6 w-6" />}
                 value={stats?.totalSessions ?? 0}
-                label="Total Sessions"
+                label={t('totalSessions')}
                 iconBg="bg-blue-100 dark:bg-blue-900/30"
                 iconColor="text-blue-600 dark:text-blue-400"
               />
               <StatsCard
                 icon={<CheckCircle className="h-6 w-6" />}
                 value={`${stats?.averageAccuracy ?? 0}%`}
-                label="Avg. Accuracy"
+                label={t('avgAccuracy')}
                 iconBg="bg-green-100 dark:bg-green-900/30"
                 iconColor="text-green-600 dark:text-green-400"
               />
               <StatsCard
                 icon={<Zap className="h-6 w-6" />}
                 value={stats?.bestDifficultyReached ?? 0}
-                label="Best Difficulty"
+                label={t('bestDifficulty')}
                 iconBg="bg-yellow-100 dark:bg-yellow-900/30"
                 iconColor="text-yellow-600 dark:text-yellow-400"
               />
               <StatsCard
                 icon={<Clock className="h-6 w-6" />}
                 value={formatMinutes(stats?.totalTimeSpentMinutes ?? 0)}
-                label="Time Spent"
+                label={t('timeSpent')}
                 iconBg="bg-purple-100 dark:bg-purple-900/30"
                 iconColor="text-purple-600 dark:text-purple-400"
               />
               <StatsCard
                 icon={<Flame className="h-6 w-6" />}
                 value={`${stats?.currentStreak ?? 0}d`}
-                label="Current Streak"
+                label={t('currentStreak')}
                 iconBg="bg-orange-100 dark:bg-orange-900/30"
                 iconColor="text-orange-600 dark:text-orange-400"
               />
@@ -147,16 +149,16 @@ export function DashboardPage() {
           >
             <Star className="mx-auto h-12 w-12 text-primary-400 mb-4" />
             <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-100">
-              No sessions yet
+              {t('noSessionsYet')}
             </h2>
             <p className="mt-2 text-surface-500">
-              Complete your first quiz to start tracking your progress.
+              {t('noSessionsDesc')}
             </p>
             <Link
               to="/courses"
               className="mt-6 inline-block rounded-xl bg-primary-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-500/25 hover:bg-primary-600 transition-colors"
             >
-              Start your first quiz →
+              {t('startFirstQuiz')}
             </Link>
           </motion.div>
         )}
@@ -191,7 +193,7 @@ export function DashboardPage() {
             transition={{ delay: 0.3 }}
           >
             <h2 className="mb-4 text-lg font-semibold text-surface-900 dark:text-surface-100">
-              Course Progress
+              {t('courseProgress')}
             </h2>
             {progressLoading ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -208,7 +210,7 @@ export function DashboardPage() {
             ) : (
               <div className="flex items-center gap-3 rounded-xl border border-surface-200 bg-surface-50 p-4 text-sm text-surface-500 dark:border-surface-700 dark:bg-surface-800/40">
                 <BookOpen className="h-5 w-5 shrink-0" />
-                <span>No course progress yet.</span>
+                <span>{t('noCourseProgress')}</span>
               </div>
             )}
           </motion.div>
@@ -222,7 +224,7 @@ export function DashboardPage() {
             transition={{ delay: 0.4 }}
           >
             <h2 className="mb-4 text-lg font-semibold text-surface-900 dark:text-surface-100">
-              Recent Activity
+              {t('recentActivity')}
             </h2>
             {activityLoading ? (
               <Skeleton className="h-48 rounded-xl" />

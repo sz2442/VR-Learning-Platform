@@ -44,24 +44,14 @@ export function useQuizSocket(
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    connection.onreconnecting(() => {
-      console.log('[SignalR] Reconnecting...');
-      setSignalRStatus('Reconnecting');
-    });
-
+    connection.onreconnecting(() => { setSignalRStatus('Reconnecting'); });
     connection.onreconnected(() => {
-      console.log('[SignalR] Reconnected');
       setSignalRStatus('Connected');
       connection.invoke('JoinSession', sid).catch(console.error);
     });
-
-    connection.onclose(() => {
-      console.log('[SignalR] Disconnected');
-      setSignalRStatus('Disconnected');
-    });
+    connection.onclose(() => { setSignalRStatus('Disconnected'); });
 
     connection.on('DifficultyUpdated', (event: DifficultyUpdatedEvent) => {
-      console.log('[SignalR] DifficultyUpdated received:', event);
       setLastDifficultyEvent(event);
       onUpdateRef.current?.(event);
     });
@@ -71,7 +61,6 @@ export function useQuizSocket(
       await connection.start();
       await connection.invoke('JoinSession', sid);
       setSignalRStatus('Connected');
-      console.log(`[SignalR] Connected and joined session ${sid}`);
     } catch (err) {
       console.error('[SignalR] Connection failed:', err);
       setSignalRStatus('Disconnected');
@@ -82,9 +71,7 @@ export function useQuizSocket(
 
   useEffect(() => {
     if (sessionId === null) return;
-
     connect(sessionId);
-
     return () => {
       connectionRef.current?.stop();
       connectionRef.current = null;

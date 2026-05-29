@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Card } from '@/components/ui';
 import { useRegister } from '@/hooks';
 
@@ -11,6 +12,7 @@ export function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const { t } = useTranslation('auth');
 
   const { mutate: register, isPending } = useRegister();
 
@@ -19,12 +21,12 @@ export function RegisterForm() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('errors.passwordsNoMatch'));
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('errors.passwordTooShort'));
       return;
     }
 
@@ -34,8 +36,8 @@ export function RegisterForm() {
   return (
     <Card className="w-full max-w-md mx-auto">
       <div className="text-center mb-6">
-        <h1 className="font-display text-2xl font-bold">Create Account</h1>
-        <p className="text-surface-500 mt-1">Start your learning journey</p>
+        <h1 className="font-display text-2xl font-bold">{t('createAccount')}</h1>
+        <p className="text-surface-500 mt-1">{t('startJourney')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -43,7 +45,7 @@ export function RegisterForm() {
           <Input
             id="name"
             type="text"
-            label="Full Name"
+            label={t('fullName')}
             placeholder="John Doe"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -56,7 +58,7 @@ export function RegisterForm() {
           <Input
             id="email"
             type="email"
-            label="Email"
+            label={t('email')}
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -69,7 +71,7 @@ export function RegisterForm() {
           <Input
             id="password"
             type={showPassword ? 'text' : 'password'}
-            label="Password"
+            label={t('password')}
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -88,7 +90,7 @@ export function RegisterForm() {
           <Input
             id="confirmPassword"
             type={showPassword ? 'text' : 'password'}
-            label="Confirm Password"
+            label={t('confirmPassword')}
             placeholder="••••••••"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -105,14 +107,14 @@ export function RegisterForm() {
           className="w-full"
           isLoading={isPending}
         >
-          Create Account
+          {t('createAccount')}
         </Button>
       </form>
 
       <div className="mt-6 text-center text-sm text-surface-500">
-        Already have an account?{' '}
+        {t('alreadyHaveAccount')}{' '}
         <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
-          Sign in
+          {t('signInLink')}
         </Link>
       </div>
     </Card>

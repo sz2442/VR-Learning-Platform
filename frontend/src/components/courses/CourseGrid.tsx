@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { CourseCard } from './CourseCard';
 import { CardSkeleton } from '@/components/ui';
 import type { Course } from '@/types';
@@ -8,6 +9,7 @@ interface CourseGridProps {
 }
 
 export function CourseGrid({ courses, isLoading }: CourseGridProps) {
+  const { t } = useTranslation('courses');
   if (isLoading) {
     return (
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -21,7 +23,7 @@ export function CourseGrid({ courses, isLoading }: CourseGridProps) {
   if (courses.length === 0) {
     return (
       <div className="py-12 text-center">
-        <p className="text-lg text-surface-500">No courses found</p>
+        <p className="text-lg text-surface-500">{t('noCourses')}</p>
       </div>
     );
   }

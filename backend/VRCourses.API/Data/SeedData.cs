@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using VRCourses.API.Models.Entities;
 
 namespace VRCourses.API.Data;
@@ -7,7 +7,6 @@ public static class SeedData
 {
     public static async Task SeedQuestionsAsync(AppDbContext context)
     {
-        // ===== ADMIN USER =====
         if (!await context.Users.AnyAsync(u => u.Role == "Admin"))
         {
             Console.WriteLine("👤 Creating admin user...");
@@ -25,7 +24,6 @@ public static class SeedData
             Console.WriteLine("✅ Admin user created: admin@test.com / admin123");
         }
 
-        // ===== КУРС 1: Mathematics Fundamentals =====
         if (!await context.Courses.AnyAsync(c => c.Title == "Mathematics Fundamentals"))
         {
             Console.WriteLine("📚 Creating Mathematics Fundamentals course...");
@@ -44,7 +42,6 @@ public static class SeedData
             Console.WriteLine("✅ Mathematics Fundamentals course created");
         }
 
-        // ===== КУРС 2: История Казахстана =====
         if (!await context.Courses.AnyAsync(c => c.Title == "История Казахстана"))
         {
             Console.WriteLine("📚 Creating История Казахстана course...");
@@ -63,7 +60,6 @@ public static class SeedData
             Console.WriteLine("✅ История Казахстана course created");
         }
 
-        // ===== ВОПРОСЫ: Mathematics Fundamentals =====
         var mathCourse = await context.Courses.FirstOrDefaultAsync(c => c.Title == "Mathematics Fundamentals");
         if (mathCourse != null && !await context.Questions.AnyAsync(q => q.CourseId == mathCourse.Id))
         {
@@ -229,7 +225,6 @@ public static class SeedData
             Console.WriteLine("✅ Math questions created");
         }
 
-        // ===== ВОПРОСЫ: История Казахстана =====
         var kazakhCourse = await context.Courses.FirstOrDefaultAsync(c => c.Title == "История Казахстана");
         if (kazakhCourse == null)
         {
@@ -513,7 +508,6 @@ public static class SeedData
             Console.WriteLine($"✅ Created {kazakhMcq.Count} MCQ + {kazakhDragDrop.Count} drag-drop questions for История Казахстана");
         }
 
-        // ===== КУРС 3: Adaptive Learning and VR in Education =====
         await SeedVRCoursAsync(context);
     }
 
@@ -541,9 +535,7 @@ public static class SeedData
         context.Courses.Add(vrCourse);
         await context.SaveChangesAsync();
 
-        // ============================
         // MODULE 1: Foundations of VR
-        // ============================
         var module1 = new Module
         {
             CourseId = vrCourse.Id,
@@ -705,9 +697,7 @@ The most educationally powerful use of VR sits at the **Redefinition** level, wh
         );
         await context.SaveChangesAsync();
 
-        // ============================
         // MODULE 2: Adaptive Learning Systems
-        // ============================
         var module2 = new Module
         {
             CourseId = vrCourse.Id,
@@ -884,9 +874,7 @@ Key metrics:
         );
         await context.SaveChangesAsync();
 
-        // ============================
         // MODULE 3: Designing VR Learning Experiences
-        // ============================
         var module3 = new Module
         {
             CourseId = vrCourse.Id,
@@ -1072,9 +1060,7 @@ xAPI statements flow to a Learning Record Store (LRS) like SCORM Cloud or a cust
         );
         await context.SaveChangesAsync();
 
-        // ============================
         // FINAL QUIZ: 25 questions (15 MCQ + 10 drag-drop)
-        // ============================
         var finalMcq = new List<Question>
         {
             new() { CourseId = vrCourse.Id, QuizType = "finalquiz", QuestionType = "mcq", Text = "Which component of a VR system provides stereoscopic vision by displaying a different image to each eye?", DifficultyLevel = 2, Category = "VR Hardware", Answers = new List<Answer> { new() { Text = "Motion controller", IsCorrect = false }, new() { Text = "Head-Mounted Display (HMD)", IsCorrect = true }, new() { Text = "Base station", IsCorrect = false }, new() { Text = "Haptic vest", IsCorrect = false } } },
@@ -1179,7 +1165,6 @@ xAPI statements flow to a Learning Record Store (LRS) like SCORM Cloud or a cust
         await SeedTestUsersAsync(context);
     }
 
-    // ===== TEST USERS =====
     // Credentials are printed to console on first seed so you can log in immediately.
     private static async Task SeedTestUsersAsync(AppDbContext context)
     {

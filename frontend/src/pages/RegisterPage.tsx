@@ -1,10 +1,12 @@
 import { Navigate } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { RegisterForm } from '@/components/auth';
 import { useAuthStore } from '@/stores/authStore';
 
 export function RegisterPage() {
   const { isAuthenticated } = useAuthStore();
+  const { t } = useTranslation('auth');
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
@@ -16,11 +18,8 @@ export function RegisterPage() {
       <div className="hidden bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 lg:block lg:flex-1">
         <div className="flex h-full items-center justify-center p-12">
           <div className="max-w-lg text-center text-white">
-            <h2 className="font-display text-4xl font-bold">Start Your Learning Journey</h2>
-            <p className="mt-4 text-lg text-white/80">
-              Join thousands of learners who are mastering new skills 
-              with our adaptive learning platform.
-            </p>
+            <h2 className="font-display text-4xl font-bold">{t('startJourneyHero')}</h2>
+            <p className="mt-4 text-lg text-white/80">{t('startJourneyHeroDesc')}</p>
           </div>
         </div>
       </div>

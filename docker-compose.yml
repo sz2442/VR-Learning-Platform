@@ -74,7 +74,9 @@ services:
       postgres:
         condition: service_healthy
       ml-service:
-        condition: service_healthy
+        # service_started (not service_healthy) — backend uses rules-fallback
+        # if ML is still warming up or unavailable; no hard boot dependency.
+        condition: service_started
     networks:
       - vr_network
     restart: unless-stopped

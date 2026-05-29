@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, MousePointerClick } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button, QuestionSkeleton } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { Question, AnswerOption } from '@/types';
@@ -13,16 +14,16 @@ interface QuizQuestionProps {
   lastResult?: { isCorrect: boolean; selectedId: number } | null;
 }
 
-export function QuizQuestion({ 
-  question, 
-  isLoading, 
-  onSubmit, 
+export function QuizQuestion({
+  question,
+  isLoading,
+  onSubmit,
   isSubmitting,
-  lastResult 
+  lastResult
 }: QuizQuestionProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const { t } = useTranslation('quiz');
 
-  // Reset selection whenever the question changes
   useEffect(() => {
     setSelectedAnswer(null);
   }, [question?.questionId]);
@@ -37,14 +38,14 @@ export function QuizQuestion({
     onSubmit(selectedAnswer);
   };
 
-    if (isLoading) {
+  if (isLoading) {
     return <QuestionSkeleton />;
   }
 
   if (!question) {
     return (
       <div className="text-center py-12">
-        <p className="text-surface-500">No question available</p>
+        <p className="text-surface-500">{t('noQuestion')}</p>
       </div>
     );
   }
@@ -54,7 +55,7 @@ export function QuizQuestion({
       <div className="space-y-6">
         <div className="space-y-2">
           <span className="inline-block rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-            Difficulty: {question.difficultyLevel}/10
+            {t('difficulty', { n: question.difficultyLevel })}
           </span>
           <h2 className="font-display text-2xl font-semibold text-surface-900 dark:text-surface-100">
             {question.text}
@@ -63,7 +64,7 @@ export function QuizQuestion({
         <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-900/20">
           <MousePointerClick className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <p className="text-sm text-amber-700 dark:text-amber-300">
-            This is a drag-and-drop question — available in VR mode. Crediting automatically…
+            {t('dragDropNotice')}
           </p>
         </div>
       </div>
@@ -83,7 +84,7 @@ export function QuizQuestion({
         {/* Question text */}
         <div className="space-y-2">
           <span className="inline-block rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-            Difficulty: {question.difficultyLevel}/10
+            {t('difficulty', { n: question.difficultyLevel })}
           </span>
           <h2 className="font-display text-2xl font-semibold text-surface-900 dark:text-surface-100">
             {question.text}
@@ -116,7 +117,7 @@ export function QuizQuestion({
             disabled={selectedAnswer === null || isSubmitting}
             isLoading={isSubmitting}
           >
-            {isSubmitting ? 'Checking...' : 'Submit Answer'}
+            {isSubmitting ? t('checking') : t('submitAnswer')}
           </Button>
         </div>
       </motion.div>
@@ -134,14 +135,14 @@ interface AnswerButtonProps {
   onClick: () => void;
 }
 
-function AnswerButton({ 
-  answer, 
-  index, 
-  isSelected, 
-  isCorrect, 
+function AnswerButton({
+  answer,
+  index,
+  isSelected,
+  isCorrect,
   isWrong,
-  disabled, 
-  onClick 
+  disabled,
+  onClick
 }: AnswerButtonProps) {
   const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -161,7 +162,6 @@ function AnswerButton({
         disabled && !isCorrect && !isWrong && 'opacity-60 cursor-not-allowed'
       )}
     >
-      {/* Letter indicator */}
       <div className={cn(
         'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-semibold transition-colors',
         isCorrect && 'bg-green-500 text-white',
@@ -172,7 +172,6 @@ function AnswerButton({
         {isCorrect ? <Check className="h-5 w-5" /> : isWrong ? <X className="h-5 w-5" /> : letters[index]}
       </div>
 
-      {/* Answer text */}
       <span className={cn(
         'flex-1 font-medium',
         isCorrect && 'text-green-700 dark:text-green-400',

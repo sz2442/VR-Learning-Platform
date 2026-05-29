@@ -33,7 +33,7 @@ public class QuizService : IQuizService
         _logger = logger;
     }
 
-    // ── Problem 1: optional moduleId / quizType ──────────────────────────────
+
 
     public async Task<StartSessionResultDto> StartQuizSessionAsync(
         int userId, int courseId, int? moduleId = null, string? quizType = null)
@@ -71,7 +71,7 @@ public class QuizService : IQuizService
         };
     }
 
-    // ── Problem 3: anti-repeat + Problem 1: module/count limits ─────────────
+
 
     public async Task<QuestionDto?> GetNextQuestionAsync(int sessionId)
     {
@@ -183,7 +183,7 @@ public class QuizService : IQuizService
         };
     }
 
-    // ── Problem 1: mini quiz skips adaptive difficulty ────────────────────────
+
 
     public async Task<SubmitAnswerResultDto> SubmitAnswerAsync(SubmitAnswerDto dto)
     {
@@ -279,7 +279,7 @@ public class QuizService : IQuizService
         };
     }
 
-    // ── Problem 2: clean exit ────────────────────────────────────────────────
+
 
     public async Task EndSessionAsync(int sessionId)
     {
@@ -293,7 +293,7 @@ public class QuizService : IQuizService
         _logger.LogInformation("🚪 Session {SessionId} ended (possibly mid-quiz)", sessionId);
     }
 
-    // ── Adaptive difficulty ───────────────────────────────────────────────────
+
 
     private async Task<(int difficulty, double confidence, string source)> GetAdaptiveDifficultyAsync(
         QuizSession session, int lastQuestionDifficulty)
@@ -422,7 +422,7 @@ public class QuizService : IQuizService
         };
     }
 
-    // ── Debug session info (dev only) ─────────────────────────────────────────
+
 
     public async Task<DebugSessionDto?> GetDebugSessionAsync(int sessionId)
     {

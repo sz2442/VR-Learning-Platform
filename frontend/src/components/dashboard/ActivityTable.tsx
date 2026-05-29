@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ActivityEntry } from '@/types';
 
 interface ActivityTableProps {
@@ -11,17 +12,19 @@ function accuracyColor(acc: number) {
 }
 
 export function ActivityTable({ data }: ActivityTableProps) {
+  const { t, i18n } = useTranslation('dashboard');
+
   return (
     <div className="overflow-x-auto rounded-xl border border-surface-200 dark:border-surface-700">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-surface-200 bg-surface-100 dark:border-surface-700 dark:bg-surface-800">
-            <th className="px-4 py-3 text-left font-semibold text-surface-600 dark:text-surface-400">Date</th>
-            <th className="px-4 py-3 text-left font-semibold text-surface-600 dark:text-surface-400">Course</th>
-            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">Questions</th>
-            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">Accuracy</th>
-            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">Difficulty</th>
-            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">Duration</th>
+            <th className="px-4 py-3 text-left font-semibold text-surface-600 dark:text-surface-400">{t('activity.date')}</th>
+            <th className="px-4 py-3 text-left font-semibold text-surface-600 dark:text-surface-400">{t('activity.course')}</th>
+            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">{t('activity.questions')}</th>
+            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">{t('activity.accuracy')}</th>
+            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">{t('activity.difficulty')}</th>
+            <th className="px-4 py-3 text-right font-semibold text-surface-600 dark:text-surface-400">{t('activity.duration')}</th>
           </tr>
         </thead>
         <tbody>
@@ -33,7 +36,7 @@ export function ActivityTable({ data }: ActivityTableProps) {
               }`}
             >
               <td className="px-4 py-3 text-surface-500">
-                {new Date(row.date).toLocaleDateString('en-US', {
+                {new Date(row.date).toLocaleDateString(i18n.resolvedLanguage, {
                   month: 'short',
                   day: 'numeric',
                   year: 'numeric',

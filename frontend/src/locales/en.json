@@ -1,0 +1,164 @@
+{
+  "common": {
+    "appName": "VR Meta University",
+    "loading": "Loading...",
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "noData": "No data available"
+  },
+  "nav": {
+    "courses": "Courses",
+    "myLearning": "My Learning",
+    "dashboard": "Dashboard",
+    "logIn": "Log in",
+    "signUp": "Sign up",
+    "logOut": "Log out",
+    "platform": "Platform",
+    "connect": "Connect",
+    "about": "About",
+    "footer": {
+      "tagline": "Experience personalized learning with AI-powered adaptive education. Our platform adjusts to your pace and learning style for optimal results.",
+      "copyright": "© {{year}} VR Meta University. Diploma Project by IT2-2217."
+    }
+  },
+  "auth": {
+    "welcomeBack": "Welcome Back",
+    "signInToContinue": "Sign in to continue learning",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign In",
+    "noAccount": "Don't have an account?",
+    "signUpLink": "Sign up",
+    "createAccount": "Create Account",
+    "startJourney": "Start your learning journey",
+    "fullName": "Full Name",
+    "confirmPassword": "Confirm Password",
+    "alreadyHaveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "learnSmarter": "Learn Smarter, Not Harder",
+    "learnSmarterDesc": "Our AI-powered platform adapts to your learning pace, ensuring you're always challenged but never overwhelmed.",
+    "startJourneyHero": "Start Your Learning Journey",
+    "startJourneyHeroDesc": "Join thousands of learners who are mastering new skills with our adaptive learning platform.",
+    "errors": {
+      "passwordsNoMatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 6 characters"
+    }
+  },
+  "home": {
+    "heroBadge": "AI-Powered Adaptive Learning",
+    "heroTitle": "Learn at Your Own Pace",
+    "heroDesc": "Experience personalized education that adapts to your learning style. Our AI adjusts difficulty in real-time for optimal learning outcomes.",
+    "searchPlaceholder": "Search courses...",
+    "allCourses": "All Courses",
+    "coursesAvailable_one": "{{count}} course available",
+    "coursesAvailable_other": "{{count}} courses available",
+    "difficulty": {
+      "All": "All",
+      "Beginner": "Beginner",
+      "Intermediate": "Intermediate",
+      "Advanced": "Advanced"
+    },
+    "features": {
+      "adaptiveTitle": "Adaptive Difficulty",
+      "adaptiveDesc": "Questions automatically adjust to your skill level, keeping you in the optimal learning zone.",
+      "progressTitle": "Real-time Progress",
+      "progressDesc": "Track your improvement with detailed analytics and performance insights.",
+      "pathTitle": "Personalized Path",
+      "pathDesc": "AI creates a unique learning journey based on your strengths and areas to improve."
+    }
+  },
+  "courses": {
+    "notFound": "Course not found",
+    "backToCourses": "Back to Courses",
+    "noCourses": "No courses found",
+    "adaptiveDifficulty": "Adaptive difficulty",
+    "adaptiveDifficulty110": "Adaptive difficulty 1-10",
+    "courseContent": "Course Content",
+    "selectLesson": "Select a lesson or quiz from the sidebar",
+    "selectLessonDesc": "Work through each module in order. Complete the module quiz to unlock the next module.",
+    "finalQuiz": "Final Quiz",
+    "finalQuizDesc": "This is the adaptive final assessment. It uses AI to adjust question difficulty in real time based on your performance. Good luck!",
+    "startFinalQuiz": "Start Final Quiz",
+    "startInVR": "Start in VR",
+    "takeMiniQuizVR": "Take Mini Quiz in VR instead",
+    "readyToLearn": "Ready to learn?",
+    "loginToAccess": "Log in to access the full structured course with modules, lessons, and quizzes.",
+    "loginToStart": "Login to Start",
+    "aboutCourse": "About this course"
+  },
+  "myLearning": {
+    "title": "My Learning",
+    "welcomeBack": "Welcome back, {{name}}! Continue where you left off.",
+    "coursesEnrolled": "Courses Enrolled",
+    "quizzesCompleted": "Quizzes Completed",
+    "avgDifficulty": "Avg. Difficulty",
+    "continueLearning": "Continue Learning",
+    "noCoursesYet": "No courses yet",
+    "noCoursesDesc": "Start exploring our catalog to begin your learning journey."
+  },
+  "dashboard": {
+    "student": "Student",
+    "memberSince": "Member since {{date}}",
+    "totalSessions": "Total Sessions",
+    "avgAccuracy": "Avg. Accuracy",
+    "bestDifficulty": "Best Difficulty",
+    "timeSpent": "Time Spent",
+    "currentStreak": "Current Streak",
+    "noSessionsYet": "No sessions yet",
+    "noSessionsDesc": "Complete your first quiz to start tracking your progress.",
+    "startFirstQuiz": "Start your first quiz →",
+    "courseProgress": "Course Progress",
+    "recentActivity": "Recent Activity",
+    "noCourseProgress": "No course progress yet.",
+    "activity": {
+      "date": "Date",
+      "course": "Course",
+      "questions": "Questions",
+      "accuracy": "Accuracy",
+      "difficulty": "Difficulty",
+      "duration": "Duration"
+    }
+  },
+  "quiz": {
+    "question": "Question",
+    "of": "of",
+    "level": "Level {{n}}",
+    "difficulty": "Difficulty: {{n}}/10",
+    "submitAnswer": "Submit Answer",
+    "checking": "Checking...",
+    "noQuestion": "No question available",
+    "dragDropNotice": "This is a drag-and-drop question — available in VR mode. Crediting automatically…",
+    "exitQuiz": "Exit quiz",
+    "results": {
+      "completed": "Quiz completed! Here's how you did:",
+      "accuracy": "Accuracy",
+      "correct": "{{correct}} / {{total}} correct",
+      "finalLevel": "Final Level",
+      "outOf10": "out of 10",
+      "finalDifficultyLabel": "Final Difficulty Level",
+      "advanced": "You're performing at an advanced level!",
+      "intermediate": "You're at an intermediate level.",
+      "keepPracticing": "Keep Practicing!",
+      "tryAgain": "Try Again",
+      "backToCourses": "Back to Courses",
+      "grades": {
+        "excellent": "Excellent!",
+        "great": "Great Job!",
+        "good": "Good Work!",
+        "notBad": "Not Bad!",
+        "keepPracticing": "Keep Practicing!"
+      }
+    }
+  },
+  "errors": {
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundDesc": "The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go Home",
+    "goBack": "Go Back"
+  }
+}

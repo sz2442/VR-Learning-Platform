@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { BookOpen, Trophy, TrendingUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Card, PageLoader } from '@/components/ui';
 import { CourseGrid } from '@/components/courses';
 import { useCourses } from '@/hooks';
@@ -8,9 +9,8 @@ import { useAuthStore } from '@/stores/authStore';
 export function MyLearningPage() {
   const { user } = useAuthStore();
   const { data: courses = [], isLoading } = useCourses();
+  const { t } = useTranslation('myLearning');
 
-  // For now, show all courses as "enrolled" - in production, 
-  // this would fetch user's enrolled courses and progress
   const enrolledCourses = courses.slice(0, 3);
 
   return (
@@ -22,9 +22,9 @@ export function MyLearningPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="font-display text-3xl font-bold">My Learning</h1>
+          <h1 className="font-display text-3xl font-bold">{t('title')}</h1>
           <p className="mt-2 text-surface-500">
-            Welcome back, {user?.name || 'Learner'}! Continue where you left off.
+            {t('welcomeBack', { name: user?.name || 'Learner' })}
           </p>
         </motion.div>
 
@@ -41,7 +41,7 @@ export function MyLearningPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{enrolledCourses.length}</p>
-                <p className="text-sm text-surface-500">Courses Enrolled</p>
+                <p className="text-sm text-surface-500">{t('coursesEnrolled')}</p>
               </div>
             </Card>
           </motion.div>
@@ -57,7 +57,7 @@ export function MyLearningPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">0</p>
-                <p className="text-sm text-surface-500">Quizzes Completed</p>
+                <p className="text-sm text-surface-500">{t('quizzesCompleted')}</p>
               </div>
             </Card>
           </motion.div>
@@ -73,7 +73,7 @@ export function MyLearningPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">-</p>
-                <p className="text-sm text-surface-500">Avg. Difficulty</p>
+                <p className="text-sm text-surface-500">{t('avgDifficulty')}</p>
               </div>
             </Card>
           </motion.div>
@@ -86,7 +86,7 @@ export function MyLearningPage() {
           transition={{ delay: 0.4 }}
         >
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Continue Learning</h2>
+            <h2 className="text-xl font-semibold">{t('continueLearning')}</h2>
           </div>
 
           {isLoading ? (
@@ -96,10 +96,8 @@ export function MyLearningPage() {
           ) : (
             <Card className="py-12 text-center">
               <BookOpen className="mx-auto h-12 w-12 text-surface-300" />
-              <h3 className="mt-4 font-semibold">No courses yet</h3>
-              <p className="mt-2 text-surface-500">
-                Start exploring our catalog to begin your learning journey.
-              </p>
+              <h3 className="mt-4 font-semibold">{t('noCoursesYet')}</h3>
+              <p className="mt-2 text-surface-500">{t('noCoursesDesc')}</p>
             </Card>
           )}
         </motion.div>

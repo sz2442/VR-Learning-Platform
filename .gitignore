@@ -6,10 +6,6 @@
 # Docker
 docker-compose.override.yml
 
-# Database backups
-*.sql
-backup.sql
-
 # OS
 .DS_Store
 Thumbs.db
@@ -31,7 +27,23 @@ public/models/
 
 .claude
 
-# Dependencies will be installed in containers
+# Dependencies (installed in containers / locally)
 node_modules/
 .venv/
 venv/
+
+# .NET build artifacts
+backend/**/bin/
+backend/**/obj/
+
+# Frontend build output
+frontend/dist/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.pytest_cache/
+
+# ML model cache / temp
+ml_module/models/*.tmp

@@ -11,7 +11,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IQuizService, QuizService>();
 
-// ✅ DbContext с детальным логированием
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -28,7 +27,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 });
 
-// Добавляем сервисы
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<ICourseStructureService, CourseStructureService>();
@@ -45,13 +43,11 @@ builder.Services.AddHttpClient<IMlService, MlService>(client =>
     client.Timeout = TimeSpan.FromSeconds(5);
 });
 
-// Generic HttpClient factory (used by AdminController for ML health checks)
+// Untyped factory used by AdminController for ML health checks
 builder.Services.AddHttpClient();
 
-// SignalR
 builder.Services.AddSignalR();
 
-// Настройка JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"];
 
@@ -69,7 +65,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
         };
 
-        // Allow SignalR to read JWT from query string
+        // SignalR passes the JWT as a query-string parameter instead of a header
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -85,7 +81,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// CORS для фронтенда (React) — AllowCredentials required for SignalR
+// AllowCredentials is required by SignalR WebSocket negotiation
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
@@ -113,7 +109,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// ✅ СНАЧАЛА миграции и seed (ДО app.Run())
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -123,30 +118,26 @@ using (var scope = app.Services.CreateScope())
 
         Console.WriteLine("🔄 Applying database migrations...");
         await context.Database.MigrateAsync();
-        Console.WriteLine("✅ Migrations applied successfully");
+        Console.WriteLine("✅ Migrations applied");
 
-        // Idempotent guard: ensure ModuleId/QuizType columns exist even when
-        // the EF Core migration discovery skips the manual migration file.
+        // Idempotent guards for columns added in manual migration files that EF tooling
+        // may skip if the snapshot is out of date in certain environments.
         await context.Database.ExecuteSqlRawAsync(@"
             ALTER TABLE ""QuizSessions"" ADD COLUMN IF NOT EXISTS ""ModuleId"" integer;
             ALTER TABLE ""QuizSessions"" ADD COLUMN IF NOT EXISTS ""QuizType""  text;
         ");
-        Console.WriteLine("✅ QuizSessions schema columns verified");
-
-        // Idempotent guard for Users.IsActive (added in AddUserIsActive migration).
         await context.Database.ExecuteSqlRawAsync(@"
             ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""IsActive"" boolean NOT NULL DEFAULT true;
         ");
-        Console.WriteLine("✅ Users.IsActive column verified");
 
         Console.WriteLine("🌱 Seeding database...");
         await SeedData.SeedQuestionsAsync(context);
-        Console.WriteLine("✅ Database seeded successfully");
+        Console.WriteLine("✅ Seed complete");
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "❌ An error occurred during database initialization");
+        logger.LogError(ex, "Database initialisation failed");
         throw;
     }
 }
@@ -157,5 +148,4 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<QuizHub>("/hubs/quiz");
 
-// ✅ app.Run() в самом конце
 app.Run();

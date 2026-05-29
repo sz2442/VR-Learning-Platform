@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button, Input, Card } from '@/components/ui';
 import { useLogin } from '@/hooks';
 
@@ -8,6 +9,7 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { t } = useTranslation('auth');
 
   const { mutate: login, isPending } = useLogin();
 
@@ -19,8 +21,8 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md mx-auto">
       <div className="text-center mb-6">
-        <h1 className="font-display text-2xl font-bold">Welcome Back</h1>
-        <p className="text-surface-500 mt-1">Sign in to continue learning</p>
+        <h1 className="font-display text-2xl font-bold">{t('welcomeBack')}</h1>
+        <p className="text-surface-500 mt-1">{t('signInToContinue')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -28,7 +30,7 @@ export function LoginForm() {
           <Input
             id="email"
             type="email"
-            label="Email"
+            label={t('email')}
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -41,7 +43,7 @@ export function LoginForm() {
           <Input
             id="password"
             type={showPassword ? 'text' : 'password'}
-            label="Password"
+            label={t('password')}
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -63,14 +65,14 @@ export function LoginForm() {
           className="w-full"
           isLoading={isPending}
         >
-          Sign In
+          {t('signIn')}
         </Button>
       </form>
 
       <div className="mt-6 text-center text-sm text-surface-500">
-        Don't have an account?{' '}
+        {t('noAccount')}{' '}
         <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
-          Sign up
+          {t('signUpLink')}
         </Link>
       </div>
     </Card>

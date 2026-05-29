@@ -1,21 +1,29 @@
 import { Link } from 'react-router-dom';
-import { Menu, X, GraduationCap, LogOut, User } from 'lucide-react';
+import { Menu, X, GraduationCap, LogOut, User, Languages } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/stores/authStore';
 import { useLogout } from '@/hooks';
 import { Button, ThemeToggle } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
+const LANGS = [
+  { code: 'en', label: 'EN' },
+  { code: 'ru', label: 'RU' },
+  { code: 'kz', label: 'KZ' },
+] as const;
+
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAuthenticated, user } = useAuthStore();
   const logout = useLogout();
+  const { t, i18n } = useTranslation('nav');
 
   const navLinks = [
-    { href: '/', label: 'Courses' },
-    { href: '/my-learning', label: 'My Learning', auth: true },
-    { href: '/dashboard', label: 'Dashboard', auth: true, role: 'Student' },
-    { href: '/instructor', label: 'Dashboard', auth: true, role: 'Instructor' },
+    { href: '/', label: t('courses') },
+    { href: '/my-learning', label: t('myLearning'), auth: true },
+    { href: '/dashboard', label: t('dashboard'), auth: true, role: 'Student' },
+    { href: '/instructor', label: t('dashboard'), auth: true, role: 'Instructor' },
   ];
 
   return (
@@ -53,6 +61,25 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            {/* Language switcher */}
+            <div className="flex items-center gap-1 rounded-lg bg-surface-100 px-1.5 py-1 dark:bg-surface-800">
+              <Languages className="h-3.5 w-3.5 text-surface-400 mr-0.5" />
+              {LANGS.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => i18n.changeLanguage(lang.code)}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 text-xs font-semibold transition-colors',
+                    i18n.resolvedLanguage === lang.code
+                      ? 'bg-primary-500 text-white'
+                      : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
+                  )}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+
             <ThemeToggle />
 
             {isAuthenticated ? (
@@ -73,10 +100,10 @@ export function Header() {
             ) : (
               <div className="hidden items-center gap-2 md:flex">
                 <Link to="/login">
-                  <Button variant="ghost" size="sm">Log in</Button>
+                  <Button variant="ghost" size="sm">{t('logIn')}</Button>
                 </Link>
                 <Link to="/register">
-                  <Button variant="primary" size="sm">Sign up</Button>
+                  <Button variant="primary" size="sm">{t('signUp')}</Button>
                 </Link>
               </div>
             )}
@@ -114,7 +141,7 @@ export function Header() {
                 </Link>
               );
             })}
-            
+
             <div className="mt-2 border-t border-surface-200 pt-2 dark:border-surface-700">
               {isAuthenticated ? (
                 <>
@@ -127,16 +154,16 @@ export function Header() {
                     className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                   >
                     <LogOut className="h-4 w-4" />
-                    Log out
+                    {t('logOut')}
                   </button>
                 </>
               ) : (
                 <div className="flex flex-col gap-2 px-4">
                   <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="outline" size="sm" className="w-full">Log in</Button>
+                    <Button variant="outline" size="sm" className="w-full">{t('logIn')}</Button>
                   </Link>
                   <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="primary" size="sm" className="w-full">Sign up</Button>
+                    <Button variant="primary" size="sm" className="w-full">{t('signUp')}</Button>
                   </Link>
                 </div>
               )}
