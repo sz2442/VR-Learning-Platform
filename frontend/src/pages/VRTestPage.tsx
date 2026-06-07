@@ -1441,7 +1441,6 @@ export function VRTestPage() {
         return;
       }
       setQuestion(q);
-      setCurrentDifficulty(q.difficultyLevel);
       setSelectedAnswer(null);
       setTimeStarted(new Date());
     } catch (err) {
