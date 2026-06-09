@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 const NAV_LINKS = [
   { label: 'Platform Stats', to: '/admin/ml-debug' },
@@ -7,6 +7,7 @@ const NAV_LINKS = [
 ];
 
 export function AdminLayout() {
+  const navigate = useNavigate();
   return (
     <div style={{ fontFamily: 'monospace', background: '#0a0c12', minHeight: '100vh', color: '#e2e8f0', display: 'flex', flexDirection: 'column' }}>
       {/* Top navbar */}
@@ -40,6 +41,25 @@ export function AdminLayout() {
             {link.label}
           </NavLink>
         ))}
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{
+            marginLeft: 'auto',
+            background: 'transparent',
+            border: '1px solid #1e293b',
+            color: '#64748b',
+            fontSize: 13,
+            cursor: 'pointer',
+            padding: '4px 12px',
+            borderRadius: 4,
+            fontFamily: 'monospace',
+            transition: 'color 0.15s, border-color 0.15s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#00e5c8'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#00e5c8'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#64748b'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#1e293b'; }}
+        >
+          ← Dashboard
+        </button>
       </nav>
 
       {/* Page content */}
