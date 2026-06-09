@@ -42,7 +42,7 @@ export function AdminLayout() {
           </NavLink>
         ))}
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/')}
           style={{
             marginLeft: 'auto',
             background: 'transparent',
@@ -58,7 +58,7 @@ export function AdminLayout() {
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#00e5c8'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#00e5c8'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#64748b'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#1e293b'; }}
         >
-          ← Dashboard
+          ← Home
         </button>
       </nav>
 
